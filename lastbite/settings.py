@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+from decouple import config
+from dotenv import load_dotenv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,9 +29,10 @@ SECRET_KEY = "django-insecure-=a--rdh+esu4a%bzudo!tp2k22u@%lpoz*@(kt&#-y(3&_2!v8
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
+AUTH_USER_MODEL = "user.User"
 
 # Application definition
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -37,8 +41,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "user",
+    "store",
+    "product",
+    "order",
 ]
-
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -72,11 +79,19 @@ WSGI_APPLICATION = "lastbite.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+
+load_dotenv()
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DJANGO_DB_NAME', default=''),
+        'USER': config('DJANGO_DB_USER', default=''),
+        'PASSWORD': config('DJANGO_DB_PASSWORD', default=''),
+        'HOST': config('DJANGO_DB_HOST', default=''),
+        'PORT': config('DJANGO_DB_PORT', default='5432'),
     }
+
 }
 
 
