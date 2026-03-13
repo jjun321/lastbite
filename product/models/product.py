@@ -4,10 +4,10 @@ class Product(models.Model):
     product_id = models.BigAutoField(db_comment="제품 ID", db_column='product_id', primary_key=True)
 
     #아직 완성 안됐으므로 외래키는 주석처리
-    #market = models.ForeignKey('market.Market', on_delete=models.CASCADE, db_comment="매장 ID", db_column='market_id')
+    #store = models.ForeignKey('store.Store', on_delete=models.CASCADE, db_comment="매장 ID", db_column='store_id')
     #category = models.ForeignKey('product.Category', on_delete=models.CASCADE, db_comment="카테고리 ID", db_column='category_id')
 
-    market_id = models.IntegerField(db_comment="매장 ID", db_column='market_id', null=True)
+    store_id = models.IntegerField(db_comment="매장 ID", db_column='store_id', null=True)
     category_id = models.IntegerField(db_comment="카테고리 ID", db_column='category_id', null=True)
     product_name = models.CharField(db_comment="제품 이름", db_column='product_name', max_length=30)
     product_desc = models.TextField(db_comment="제품 설명", db_column='product_desc', null=True)

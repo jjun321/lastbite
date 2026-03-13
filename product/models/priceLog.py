@@ -4,10 +4,10 @@ class PriceLog(models.Model):
     log_id = models.BigAutoField(db_comment="로그 ID", db_column='log_id', primary_key=True)
 
     # 아직 완성 안됐으므로 외래키는 주석처리
-    #market = models.ForeignKey('market.Market', on_delete=models.CASCADE, db_comment="매장 ID", db_column='market_id')
+    #store = models.ForeignKey('store.Store', on_delete=models.CASCADE, db_comment="매장 ID", db_column='store_id')
     #user = models.ForeignKey('user.User', on_delete=models.CASCADE, db_comment="점주 ID", db_column='user_id')
 
-    market_id = models.IntegerField(db_comment="매장 ID", db_column='market_id', null=True)
+    store_id = models.IntegerField(db_comment="매장 ID", db_column='store_id', null=True)
     user_id = models.IntegerField(db_comment="점주 ID", db_column='user_id', null=True)
     product_dis_price = models.IntegerField(db_comment="제품 할인 후 가격", db_column='product_dis_price', null=True)
     product_ori_price = models.IntegerField(db_comment="제품 할인 전 가격", db_column='product_ori_price', null=True)
