@@ -4,10 +4,10 @@ from order.models.choices import ORDER_STATUS_CHOICE
 class Order(models.Model):
     order_id = models.BigAutoField(db_comment="주문 번호", db_column='order_id', primary_key=True)
     #아직 완성되지 않았기에 외래키는 임시로 주석처리
-    #market_id = models.ForeignKey('market.Market', on_delete=models.CASCADE, db_comment="매장 ID", db_column='market_id')
+    #store_id = models.ForeignKey('store.Store', on_delete=models.CASCADE, db_comment="매장 ID", db_column='store_id')
     #user_id = models.ForeignKey('user.User', on_delete=models.CASCADE, db_comment="소비자 ID", db_column='user_id')
 
-    market_id = models.IntegerField(db_comment="매장 ID", db_column='market_id', null=True)
+    store_id = models.IntegerField(db_comment="매장 ID", db_column='store_id', null=True)
     user_id = models.IntegerField(db_comment="소비자 ID", db_column='user_id', null=True)
     order_status = models.CharField(db_comment="주문 상태", db_column='order_status', max_length=10, choices=ORDER_STATUS_CHOICE)
     pickup_dt = models.DateTimeField(db_comment="픽업 일시", db_column='pickup_dt', null=True)
