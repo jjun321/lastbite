@@ -3,7 +3,7 @@ from django.db import models
 from store.models.store import Store
 from user.models.user import User
 
-class StoreWorkingTime(models):
+class StoreWorkingTime(models.Model):
     working_time_id = models.BigAutoField(db_comment="매장 운영시간 ID", db_column='working_time_id', primary_key=True)
     store_id = models.ForeignKey(Store,on_delete=models.CASCADE,db_comment="매장 ID", db_column='store_id')
     working_day = models.TextField(db_comment="매장 운영 요일", db_column="store_address", max_length=10)

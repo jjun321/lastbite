@@ -3,7 +3,7 @@ from django.db import models
 from store.models.store import Store
 from user.models.user import User
 
-class OffDate(models):
+class OffDate(models.Model):
     closed_date_id = models.BigAutoField(db_comment="휴무 테이블 ID", db_column='closed_date_id', primary_key=True)
     user_id = models.ForeignKey(User,on_delete=models.CASCADE,db_comment="유저 ID", db_column='user_id')
     store_id = models.ForeignKey(Store,on_delete=models.CASCADE,db_comment="매장 ID", db_column='store_id')

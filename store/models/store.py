@@ -1,7 +1,7 @@
 from django.db import models
 from user.models.user import User
 
-class Store(models):
+class Store(models.Model):
     store_id = models.BigAutoField(db_comment="매장 ID", db_column='store_id', primary_key=True)
     user_id = models.ForeignKey(User,on_delete=models.CASCADE,db_comment="유저 ID", db_column='user_id')
     store_name = models.CharField(db_comment="매장 이름", db_column="store_name", max_length=20)
