@@ -2,8 +2,6 @@ from django.db import models
 
 class Product(models.Model):
     product_id = models.BigAutoField(db_comment="제품 ID", db_column='product_id', primary_key=True)
-
-    #아직 완성 안됐으므로 외래키는 주석처리
     store_id = models.ForeignKey('store.Store', on_delete=models.CASCADE, db_comment="매장 ID", db_column='store_id')
     category_id = models.ForeignKey('product.Category', on_delete=models.CASCADE, db_comment="카테고리 ID", db_column='category_id')
     product_name = models.CharField(db_comment="제품 이름", db_column='product_name', max_length=30)
