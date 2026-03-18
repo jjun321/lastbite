@@ -45,8 +45,6 @@ INSTALLED_APPS = [
     "store",
     "product",
     "order",
-    "common",
-    "image",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
