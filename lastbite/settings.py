@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     "store",
     "product",
     "order",
-    "common"
+    "common",
     "image",
 ]
 MIDDLEWARE = [
