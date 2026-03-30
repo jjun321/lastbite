@@ -3,13 +3,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from user.models.user import User
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer, LoginSerializer
+
 # 응답 규격에 유저 객체 정보도 들어가기에 커스텀 뷰 구조 만듦
-# TokenObtainPairView 상속 받아 기존 응답을 데이터를 포함한 새로운 응답구조로 감싸는 방식도 가능할 것 같음.
-# 시리얼라이저도 TokenObtainPairSerializer 상속 받아 응답에 사용자 정보 추가하는 방식으로도 가능할 것 같음
+
 def api_response(success, message, data=None):
     # 응답 규격 구조체
     res = {
@@ -20,31 +21,20 @@ def api_response(success, message, data=None):
         res["data"] = data
     return res
 
-class LoginView(APIView):
+class LoginView(TokenObtainPairView):
     # 로그인
     permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
 
-    def post(self, request):
-        email = request.data.get('user_email')
-        password = request.data.get('user_password')
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            # 로그인 실패 시 명세서에 따라 AUTH_001 반환
+            return Response(api_response(False, "AUTH_001"), status=status.HTTP_200_OK)
 
-        user = authenticate(username=email, password=password)
-
-        if user is None:
-            return Response(api_response(False, "AUTH_001"), status=status.HTTP_200_OK) # 로그인 실패 시 AUTH_001
-
-        refresh = RefreshToken.for_user(user) # 유저 존재하면 토큰 생성
-        
-        return Response(api_response(True, "성공", {
-            "access_token": str(refresh.access_token),
-            "refresh_token": str(refresh),
-            "user": {
-                "user_id": user.user_id,
-                "user_name": user.user_name,
-                "user_email": user.user_email,
-                "user_type": user.user_type
-            }
-        }), status=status.HTTP_200_OK)
+        return Response(api_response(True, "성공", serializer.validated_data), status=status.HTTP_200_OK)
 
 class RegisterView(APIView):
     # 소비자 회원가입
@@ -82,11 +72,11 @@ class RefreshTokenView(APIView):
         try:
             refresh = RefreshToken(refresh_token)
             new_access_token = str(refresh.access_token)
-            
+
             return Response(api_response(True, "성공", {
                 "access_token": new_access_token
             }), status=status.HTTP_200_OK)
-            
+
         except TokenError:
             return Response(api_response(False, "유효하지 않거나 만료된 토큰입니다."), status=status.HTTP_401_UNAUTHORIZED)
 
