@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'shop_page.dart';
-
 // 소비자 예약완료 페이지
 
 class ReservationCompleteScreen extends StatelessWidget {
@@ -37,7 +35,7 @@ class ReservationCompleteScreen extends StatelessWidget {
                           border: Border.all(color: const Color(0xFFEAFBF0), width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
+                              color: Colors.black.withValues(alpha:0.12),
                               blurRadius: 4,
                               offset: const Offset(0, 3),
                             ),
