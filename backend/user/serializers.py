@@ -72,3 +72,32 @@ class RegisterSerializer(serializers.ModelSerializer):
             profile_img_id=None
         )
         return user
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    # 비밀번호 재설정 링크 요청
+    user_email = serializers.EmailField()
+
+    def validate_user_email(self, value):
+        # 재설정 계속하는 것으로 이메일 계정이 존재하는 지 안 하는지 확인 하는 것 막기 위해 미존재 시에도 성공 응답 반환
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    # 새 비밀번호 저장
+    token = serializers.UUIDField()
+    user_password = serializers.CharField(write_only=True, min_length=8, max_length=20)
+    password_confirm = serializers.CharField(write_only=True)
+
+    def validate_user_password(self, value):
+        import re
+        regex = r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$'
+        if not re.match(regex, value):
+            raise serializers.ValidationError(
+                "비밀번호는 8~20자이며, 영문, 숫자, 특수문자를 모두 포함해야 합니다."
+            )
+        return value
+
+    def validate(self, data):
+        if data.get('user_password') != data.get('password_confirm'):
+            raise serializers.ValidationError({"password_confirm": "비밀번호가 일치하지 않습니다."})
+        return data
