@@ -144,10 +144,11 @@ local_settings.py
 .env.*
 !.env.example
 
-# ───── Claude MCP ─────
+# ───── Claude ─────
 .claude/
 .mcp.json
 claude_desktop_config.json
+CLAUDE.md
 
 # ───── OS ─────
 .DS_Store
