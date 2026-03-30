@@ -117,3 +117,38 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+# ───── IDE ─────
+.idea/
+.vscode/
+
+# ───── Python ─────
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# ───── 가상환경 ─────
+venv/
+.venv/
+env/
+
+# ───── Django ─────
+*.sqlite3
+/media/
+/staticfiles/
+local_settings.py
+
+# ───── 환경변수 ─────
+.env
+.env.*
+!.env.example
+
+# ───── Claude MCP ─────
+.claude/
+.mcp.json
+claude_desktop_config.json
+
+# ───── OS ─────
+.DS_Store
+Thumbs.db
