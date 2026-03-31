@@ -79,6 +79,9 @@ DATABASES = {
     }
 }
 
+# Redis 설정 (Upstash)
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
