@@ -1,24 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// ------------------------------------------------------------
-/// 파일명: welcome_page.dart
-/// 위치: lib/features/auth/presentation/pages/welcome_page.dart
-///
-/// 이 파일은 앱을 처음 켰을 때 보여줄 첫 화면이다.
-/// 현재 디자인 기준으로 아래 요소를 포함한다.
+/// 이 파일은 앱을 처음 켰을 때 보여줄 첫 화면
+/// 현재 디자인 기준으로 아래 요소를 포함
 /// 1. 상단 여백
 /// 2. 가운데 로고 이미지
 /// 3. 하단 안내 문구
 /// 4. "시작하기" 버튼
-///
-/// 사용자가 직접 타이핑할 때 순서:
-/// 1) 파일 생성
-/// 2) import 붙여넣기
-/// 3) WelcomePage 클래스 작성
-/// 4) build 메서드 안 UI 작성
-/// 5) 나중에 router에서 /welcome 에 연결
-/// ------------------------------------------------------------
+
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
 
@@ -31,7 +20,6 @@ class WelcomePage extends StatelessWidget {
 
       body: SafeArea(
         child: Padding(
-          /// 좌우 여백을 조금 준다
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
 
           child: Column(
@@ -46,7 +34,6 @@ class WelcomePage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     /// 로고 이미지
-                    /// assets/images/lastbite_logo.png 를 사용한다
                     Image.asset(
                       'assets/images/logo_lastbite.png',
                       width: 220,
@@ -54,13 +41,6 @@ class WelcomePage extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 24),
-
-                    /// 필요하면 여기에 서브 문구를 추가할 수도 있다
-                    /// 예:
-                    /// Text(
-                    ///   '위치기반 마감할인 서비스',
-                    ///   style: TextStyle(...),
-                    /// ),
                   ],
                 ),
               ),
@@ -68,7 +48,7 @@ class WelcomePage extends StatelessWidget {
               /// 하단 안내 문구
               GestureDetector(
                 onTap: () {
-                  context.go('/owner-entry');
+                  context.go('/login');
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
