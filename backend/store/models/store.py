@@ -8,6 +8,10 @@ class Store(models.Model):
     store_address = models.CharField(db_comment="매장 주소", db_column="store_address", max_length=100)
     is_closed = models.BooleanField(db_comment="매장 마감 여부", db_column="is_closed", default=False )
     is_deleted = models.BooleanField(db_comment='삭제 여부', db_column='is_deleted', default=False )
+    store_lat = models.FloatField(db_comment="매장 위도", db_column="store_lat", null=True)
+    #더욱 정확함 위할 시 위도도 deciaml로 수정 가능
+    #store_lat = models.DecimalField(db_comment="매장 위도", db_column="store_lat", max_digits=8, decimal_places=6, null=True)
+    store_long = models.DecimalField(db_comment="매장 경도", db_column="store_long", max_digits=9, decimal_places=6, null=True)
     reg_dt = models.DateTimeField(db_comment="생성 일자", db_column='reg_dt', auto_now_add=True)
 
     class Meta:
