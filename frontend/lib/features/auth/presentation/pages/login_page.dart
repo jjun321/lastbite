@@ -168,8 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // TODO: 회원가입 페이지로 이동
-                      context.go('/signup');
+                      context.go('/signup'); // 회원가입 페이지 이동
                     },
                     child: const Text(
                       '회원가입',
@@ -192,24 +191,6 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// 소셜 로그인 원형 버튼 위젯
-  Widget _socialButton({
-    required Color color,
-    required Widget icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        alignment: Alignment.center,
-        child: icon,
       ),
     );
   }
