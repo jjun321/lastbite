@@ -1,5 +1,5 @@
 from django.urls import path
-from store.views import StoreListView, StoreDetailView, StoreHoursView
+from .views import StoreListView, StoreDetailView, StoreHoursView
 
 urlpatterns = [
     path('stores', StoreListView.as_view(), name='store-list'),

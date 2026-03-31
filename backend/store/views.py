@@ -4,7 +4,7 @@ import math
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 
 from store.models.store import Store
 from store.serializers import StoreListSerializer, StoreDetailSerializer, StoreWorkingTimeSerializer
@@ -23,8 +23,8 @@ def api_response(success, message, data=None):
 
 
 class StoreListView(APIView):
-    #GET /stores/"""
-    permission_classes = [AllowAny]
+    #GET /stores/
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
@@ -96,7 +96,7 @@ class StoreListView(APIView):
 
 class StoreDetailView(APIView):
     #GET /stores/{store_id}/"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, store_id):
         try:
@@ -111,8 +111,8 @@ class StoreDetailView(APIView):
 
 
 class StoreHoursView(APIView):
-    #GET /stores/{store_id}/hours/"""
-    permission_classes = [AllowAny]
+    #GET /stores/{store_id}/hours/
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, store_id):
         try:

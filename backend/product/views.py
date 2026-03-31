@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 
 from store.models.store import Store
 from product.models.product import Product
@@ -16,10 +16,10 @@ def api_response(success, message, data=None):
         res['data'] = data
     return res
 
-
+#store의 뷰에 두면 store 가 product의 각종 상세 필드 알아야함. 시리얼라이저의 로직도 product의 필드에 의존하기에 product에 둠
 class StoreProductListView(APIView):
     #GET /stores/{store_id}/products/
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, store_id):
         # 매장 존재 확인
