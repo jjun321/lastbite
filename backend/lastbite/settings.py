@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from decouple import config
+from datetime import timedelta
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,10 +25,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
-    # Local
+    "rest_framework_simplejwt.token_blacklist",
     "user",
     "store",
     "product",
@@ -112,3 +112,26 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+
+# JWT Settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+}
+
+# Email Settings (wiil be used in password resets)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+
+PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
+
+# temp reset page, needs to be changed
+FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
