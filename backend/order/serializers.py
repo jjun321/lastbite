@@ -1,0 +1,179 @@
+from django.db import transaction
+from rest_framework import serializers
+
+from order.models.order import Order
+from order.models.orderProdList import OrderProdList
+from product.models.product import Product
+from store.models.off_date import OffDate
+from store.models.store import Store
+from store.models.store_working_time import StoreWorkingTime
+
+
+# 요일 코드 매핑 (Python weekday() 기준)
+# 0=월, 1=화, 2=수, 3=목, 4=금, 5=토, 6=일
+WEEKDAY_CODE_MAP = {
+    0: 'D02',  # 월
+    1: 'D03',  # 화
+    2: 'D04',  # 수
+    3: 'D05',  # 목
+    4: 'D06',  # 금
+    5: 'D07',  # 토
+    6: 'D01',  # 일
+}
+
+
+# ─── 주문 생성 ───────────────────────────────────────────
+
+class OrderItemInputSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    store_id = serializers.IntegerField()
+    pickup_dt = serializers.DateTimeField()
+    items = OrderItemInputSerializer(many=True)
+
+    def validate_store_id(self, value):
+        try:
+            store = Store.objects.get(store_id=value, is_deleted=False)
+        except Store.DoesNotExist:
+            raise serializers.ValidationError("존재하지 않는 매장입니다.")
+        if store.is_closed:
+            raise serializers.ValidationError("현재 마감된 매장입니다.")
+        return value
+
+    def validate(self, attrs):
+        store_id = attrs['store_id']
+        pickup_dt = attrs['pickup_dt']
+        items = attrs['items']
+
+        store = Store.objects.get(store_id=store_id, is_deleted=False)
+
+        # 1. 휴무일 체크
+        pickup_date = pickup_dt.date()
+        if OffDate.objects.filter(store_id=store, off_dt=pickup_date).exists():
+            raise serializers.ValidationError({"pickup_dt": "해당 날짜는 매장 휴무일입니다."})
+
+        # 2. 운영시간 체크
+        day_code = WEEKDAY_CODE_MAP[pickup_dt.weekday()]
+        working_time = StoreWorkingTime.objects.filter(
+            store_id=store,
+            working_day=day_code,
+        ).first()
+
+        if not working_time:
+            raise serializers.ValidationError({"pickup_dt": "해당 요일은 매장 운영일이 아닙니다."})
+
+        pickup_time = pickup_dt.time()
+        if not (working_time.start_time <= pickup_time <= working_time.end_time):
+            raise serializers.ValidationError({"pickup_dt": "픽업 시간이 매장 운영시간을 벗어납니다."})
+
+        # 3. 재고 체크
+        for item in items:
+            try:
+                product = Product.objects.get(
+                    product_id=item['product_id'],
+                    store_id=store,
+                    is_deleted=False,
+                )
+            except Product.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"items": f"상품 ID {item['product_id']}가 존재하지 않습니다."}
+                )
+            if product.product_count is None or product.product_count < item['quantity']:
+                raise serializers.ValidationError(
+                    {"items": f"'{product.product_name}' 상품의 재고가 부족합니다."}
+                )
+
+        attrs['store'] = store
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        user = self.context['request'].user
+        store = validated_data['store']
+        pickup_dt = validated_data['pickup_dt']
+        items = validated_data['items']
+
+        # 주문 생성
+        order = Order.objects.create(
+            user_id=user,
+            store_id=store,
+            order_status='S01',
+            pickup_dt=pickup_dt,
+        )
+
+        total_price = 0
+        for item in items:
+            # select_for_update: 동시 요청 시 재고 보호
+            product = Product.objects.select_for_update().get(product_id=item['product_id'])
+
+            # 재고 차감
+            product.product_count -= item['quantity']
+            product.save()
+
+            # 주문 상품 생성
+            OrderProdList.objects.create(
+                order_id=order,
+                product_id=product,
+                order_prod_count=item['quantity'],
+                product_dis_price=product.product_dis_price,
+                product_ori_price=product.product_ori_price,
+            )
+            total_price += product.product_dis_price * item['quantity']
+
+        return order, total_price
+
+
+# ─── 주문 목록 조회 ──────────────────────────────────────
+
+class OrderListSerializer(serializers.ModelSerializer):
+    store_id = serializers.IntegerField(source='store_id_id')
+    store_name = serializers.CharField(source='store_id.store_name')
+    order_dt = serializers.DateTimeField(source='reg_dt')
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'total_price']
+
+    def get_total_price(self, obj):
+        return sum(
+            item.product_dis_price * item.order_prod_count
+            for item in obj.orderprodlist_set.all()
+        )
+
+
+# ─── 주문 상세 조회 ──────────────────────────────────────
+
+class OrderItemOutputSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='product_id_id')
+    product_name = serializers.CharField(source='product_id.product_name')
+    quantity = serializers.IntegerField(source='order_prod_count')
+    subtotal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderProdList
+        fields = ['product_id', 'product_name', 'quantity', 'product_dis_price', 'product_ori_price', 'subtotal']
+
+    def get_subtotal(self, obj):
+        return obj.product_dis_price * obj.order_prod_count
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    store_id = serializers.IntegerField(source='store_id_id')
+    store_name = serializers.CharField(source='store_id.store_name')
+    order_dt = serializers.DateTimeField(source='reg_dt')
+    items = OrderItemOutputSerializer(source='orderprodlist_set', many=True)
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'items', 'total_price']
+
+    def get_total_price(self, obj):
+        return sum(
+            item.product_dis_price * item.order_prod_count
+            for item in obj.orderprodlist_set.all()
+        )
