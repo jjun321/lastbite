@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.exceptions import TokenError
@@ -28,7 +28,7 @@ def api_response(success, message, data=None):
 
 class LoginView(TokenObtainPairView):
     # 로그인
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
@@ -43,7 +43,7 @@ class LoginView(TokenObtainPairView):
 
 class RegisterView(APIView):
     # 소비자 회원가입
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -67,7 +67,7 @@ class RegisterView(APIView):
 
 class RefreshTokenView(APIView):
     # 액세스 토큰 갱신
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = request.data.get('refresh_token')
@@ -88,7 +88,7 @@ class RefreshTokenView(APIView):
 class LogoutView(APIView):
     # 로그아웃
     # 인증되지 않은 사용자 로그아웃 관련 처리 필요할 수도 있음. 지금은 아무나 가능
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         return Response(api_response(True, "성공", {
@@ -97,7 +97,7 @@ class LogoutView(APIView):
 
 class EmailCheckView(APIView):
     # 이메일 중복 체크
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         field = request.data.get('field') or request.query_params.get('field')
@@ -118,7 +118,7 @@ class EmailCheckView(APIView):
 class PasswordResetRequestView(APIView):
     #POST /auth/password/reset-request
     #이메일로 비밀번호 재설정 링크 발송
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -171,7 +171,7 @@ class PasswordResetRequestView(APIView):
 class PasswordResetConfirmCheckView(APIView):
     #GET /auth/password/reset-confirm?token=<uuid>
     #토큰 유효성 검증 (프론트에서 링크 접근 시 호출)
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         token_value = request.query_params.get('token')
@@ -207,7 +207,7 @@ class PasswordResetConfirmCheckView(APIView):
 class PasswordResetConfirmView(APIView):
     #POST /auth/password/reset-confirm
     #새 비밀번호 저장
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
