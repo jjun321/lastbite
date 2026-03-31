@@ -9,7 +9,6 @@ class Product(models.Model):
     product_count = models.SmallIntegerField(db_comment="제품 재고", db_column='product_count',null=True)
     product_dis_price = models.IntegerField(db_comment="제품 할인 후 가격", db_column='product_dis_price', null=True)
     product_ori_price = models.IntegerField(db_comment="제품 할인 전 가격", db_column='product_ori_price', null=True)
-    product_freshness = models.IntegerField(db_comment="제품 신선도", db_column='product_freshness', null=True)
     is_deleted = models.BooleanField(db_comment="삭제 여부", db_column='is_deleted', default=False)
     reg_dt = models.DateTimeField(db_comment="생성 일자", db_column='reg_dt', auto_now_add=True)
 
