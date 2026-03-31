@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/presentation/pages/login_page.dart';
+import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 import 'package:frontend/features/auth/presentation/pages/welcome_page.dart';
 
 /// ------------------------------------------------------------
@@ -24,5 +25,6 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(path: '/welcome', builder: (context, state) => const WelcomePage()),
     GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+    GoRoute(path: '/signup', builder: (context, state) => const SignupPage()),
   ],
 );

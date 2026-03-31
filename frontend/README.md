@@ -119,7 +119,9 @@ frontend/lib/
     │       ├── pages/
     │       │   ├── welcome_page.dart       # 앱 시작 화면
     │       │   ├── login_page.dart         # 로그인
-    │       │   ├── register_page.dart      # 회원가입
+    │       │   ├── signup_page.dart      # 회원가입
+    │       │   ├── pwfind_page.dart      # 비밀번호 찾기
+    │       │   ├── pwchange_page.dart      # 비밀번호 변경
     │       │   └── owner_entry_page.dart   # 점주 시작 화면
     │       ├── widgets/                    # auth 전용 위젯
     │       └── providers/

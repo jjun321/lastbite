@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-/// ------------------------------------------------------------
-/// 파일명: login_page.dart
-/// 위치: lib/features/auth/presentation/pages/login_page.dart
-///
-/// 역할:
 /// 아이디/비밀번호 로그인 화면
-/// 소셜 로그인(Google, Apple, Instagram) 버튼 포함
-/// ------------------------------------------------------------
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -156,10 +151,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: const Text(
                     '로그인',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -172,14 +164,12 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Text(
                     '처음이신가요? ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF8A8A8A),
-                    ),
+                    style: TextStyle(fontSize: 14, color: Color(0xFF8A8A8A)),
                   ),
                   GestureDetector(
                     onTap: () {
                       // TODO: 회원가입 페이지로 이동
+                      context.go('/signup');
                     },
                     child: const Text(
                       '회원가입',
@@ -199,66 +189,6 @@ class _LoginPageState extends State<LoginPage> {
               const Divider(color: Color(0xFFDDDDDD), thickness: 1),
 
               const SizedBox(height: 20),
-
-              /// ─── 소셜 로그인 안내 문구 ───
-              const Center(
-                child: Text(
-                  '다음으로 로그인하기',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF8A8A8A),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              /// ─── 소셜 로그인 아이콘 ───
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  /// Google
-                  _socialButton(
-                    color: const Color(0xFFE0E0E0),
-                    icon: const Text(
-                      'G',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF888888),
-                      ),
-                    ),
-                    onTap: () {
-                      // TODO: Google 로그인
-                    },
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  /// Apple
-                  _socialButton(
-                    color: const Color(0xFF222222),
-                    icon: const Icon(Icons.apple, color: Colors.white, size: 26),
-                    onTap: () {
-                      // TODO: Apple 로그인
-                    },
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  /// Instagram
-                  _socialButton(
-                    color: const Color(0xFFCE4EC1),
-                    icon: const Icon(Icons.camera_alt_outlined,
-                        color: Colors.white, size: 22),
-                    onTap: () {
-                      // TODO: Instagram 로그인
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -277,10 +207,7 @@ class _LoginPageState extends State<LoginPage> {
       child: Container(
         width: 48,
         height: 48,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         alignment: Alignment.center,
         child: icon,
       ),
