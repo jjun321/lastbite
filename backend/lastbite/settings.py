@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "store",
     "product",
     "order",
+    "cart",
     "common",
     "image",
 ]
@@ -78,7 +79,9 @@ DATABASES = {
     }
 }
 
-# DRF 설정
+# Redis 설정 (Upstash)
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -89,7 +92,6 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "common.response.custom_exception_handler",
 }
 
-# JWT 설정
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
