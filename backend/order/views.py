@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from common.response import error_response, success_response
+from common.response import error_response, extract_first_error, success_response
 from order.models.order import Order
 from order.serializers import (
     OrderCreateSerializer,
@@ -12,6 +12,19 @@ from order.serializers import (
     OrderListSerializer,
 )
 from product.models.product import Product
+
+
+def get_order_or_404(order_id, user):
+    """
+    주문 조회 헬퍼 함수
+    OrderDetailView, OrderCancelView 양쪽에서 동일한 조회 로직이
+    중복되어 함수로 분리
+    조회 성공 시 order 반환, 실패 시 None 반환
+    """
+    try:
+        return Order.objects.get(order_id=order_id, user_id=user)
+    except Order.DoesNotExist:
+        return None
 
 
 class OrderView(APIView):
@@ -24,17 +37,10 @@ class OrderView(APIView):
     def post(self, request):
         serializer = OrderCreateSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
-            # 첫 번째 에러 메시지 추출
-            errors = serializer.errors
-            first_key = list(errors.keys())[0]
-            first_val = errors[first_key]
-            if isinstance(first_val, list):
-                message = str(first_val[0])
-            elif isinstance(first_val, dict):
-                message = str(list(first_val.values())[0][0])
-            else:
-                message = str(first_val)
-            return error_response(message=message, status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                message=extract_first_error(serializer.errors),
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
 
         order, total_price = serializer.save()
         return success_response(
@@ -76,9 +82,8 @@ class OrderDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, order_id):
-        try:
-            order = Order.objects.get(order_id=order_id, user_id=request.user)
-        except Order.DoesNotExist:
+        order = get_order_or_404(order_id, request.user)
+        if not order:
             return error_response(
                 message="주문을 찾을 수 없습니다.",
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -95,9 +100,8 @@ class OrderCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, order_id):
-        try:
-            order = Order.objects.get(order_id=order_id, user_id=request.user)
-        except Order.DoesNotExist:
+        order = get_order_or_404(order_id, request.user)
+        if not order:
             return error_response(
                 message="주문을 찾을 수 없습니다.",
                 status_code=status.HTTP_404_NOT_FOUND,
