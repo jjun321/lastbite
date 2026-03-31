@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from cart.serializers import CartItemAddSerializer, CartItemUpdateSerializer
-from common.response import error_response, success_response
+from common.response import error_response, extract_first_error, success_response
 from product.models.product import Product
 
 CART_TTL = 60 * 60 * 24 * 7  # 7일
@@ -47,6 +47,21 @@ def calc_totals(items):
     total_quantity = sum(item['quantity'] for item in items)
     total_price = sum(item['subtotal'] for item in items)
     return total_quantity, total_price
+
+
+def get_cart_item_or_404(cart, cart_item_id):
+    """
+    장바구니 항목 조회 헬퍼 함수
+    CartItemDetailView의 patch, delete 양쪽에서 동일한 조회 로직이
+    중복되어 함수로 분리
+    조회 성공 시 item 반환, 실패 시 None 반환
+    """
+    if not cart:
+        return None
+    return next(
+        (i for i in cart['items'] if i['cart_item_id'] == cart_item_id),
+        None
+    )
 
 
 class CartView(APIView):
@@ -91,8 +106,7 @@ class CartItemView(APIView):
     def post(self, request):
         serializer = CartItemAddSerializer(data=request.data)
         if not serializer.is_valid():
-            first_error = list(serializer.errors.values())[0][0]
-            return error_response(message=str(first_error))
+            return error_response(message=extract_first_error(serializer.errors))
 
         product_id = serializer.validated_data['product_id']
         quantity = serializer.validated_data['quantity']
@@ -167,23 +181,17 @@ class CartItemDetailView(APIView):
     def patch(self, request, cart_item_id):
         serializer = CartItemUpdateSerializer(data=request.data)
         if not serializer.is_valid():
-            first_error = list(serializer.errors.values())[0][0]
-            return error_response(message=str(first_error))
+            return error_response(message=extract_first_error(serializer.errors))
 
         r = get_redis()
         cart = get_cart_data(r, request.user.pk)
+        item = get_cart_item_or_404(cart, cart_item_id)
 
         if not cart:
             return error_response(
                 message="장바구니가 비어 있습니다.",
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-
-        # 해당 cart_item_id 찾기
-        item = next(
-            (i for i in cart['items'] if i['cart_item_id'] == cart_item_id),
-            None
-        )
 
         if not item:
             return error_response(
@@ -208,6 +216,7 @@ class CartItemDetailView(APIView):
     def delete(self, request, cart_item_id):
         r = get_redis()
         cart = get_cart_data(r, request.user.pk)
+        item = get_cart_item_or_404(cart, cart_item_id)
 
         if not cart:
             return error_response(
@@ -215,14 +224,13 @@ class CartItemDetailView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        original_count = len(cart['items'])
-        cart['items'] = [i for i in cart['items'] if i['cart_item_id'] != cart_item_id]
-
-        if len(cart['items']) == original_count:
+        if not item:
             return error_response(
                 message="장바구니 항목을 찾을 수 없습니다.",
                 status_code=status.HTTP_404_NOT_FOUND,
             )
+
+        cart['items'] = [i for i in cart['items'] if i['cart_item_id'] != cart_item_id]
 
         # 장바구니가 비었으면 키 삭제
         if not cart['items']:
