@@ -22,6 +22,20 @@ WEEKDAY_CODE_MAP = {
 }
 
 
+# ─── Mixin: total_price 계산 공통화 ──────────────────────
+
+class TotalPriceMixin:
+    """
+    OrderListSerializer, OrderDetailSerializer 양쪽에서
+    동일한 get_total_price 로직이 중복되어 Mixin으로 분리
+    """
+    def get_total_price(self, obj):
+        return sum(
+            item.product_dis_price * item.order_prod_count
+            for item in obj.orderprodlist_set.all()
+        )
+
+
 # ─── 주문 생성 ───────────────────────────────────────────
 
 class OrderItemInputSerializer(serializers.Serializer):
@@ -41,14 +55,15 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("존재하지 않는 매장입니다.")
         if store.is_closed:
             raise serializers.ValidationError("현재 마감된 매장입니다.")
+        # DB 이중 조회 방지: validate()에서 재사용할 수 있도록 캐싱
+        self._store = store
         return value
 
     def validate(self, attrs):
-        store_id = attrs['store_id']
+        # validate_store_id에서 이미 조회한 store 재사용 (DB 쿼리 절약)
+        store = self._store
         pickup_dt = attrs['pickup_dt']
         items = attrs['items']
-
-        store = Store.objects.get(store_id=store_id, is_deleted=False)
 
         # 1. 휴무일 체크
         pickup_date = pickup_dt.date()
@@ -128,7 +143,7 @@ class OrderCreateSerializer(serializers.Serializer):
 
 # ─── 주문 목록 조회 ──────────────────────────────────────
 
-class OrderListSerializer(serializers.ModelSerializer):
+class OrderListSerializer(TotalPriceMixin, serializers.ModelSerializer):
     store_id = serializers.IntegerField(source='store_id_id')
     store_name = serializers.CharField(source='store_id.store_name')
     order_dt = serializers.DateTimeField(source='reg_dt')
@@ -137,12 +152,6 @@ class OrderListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'total_price']
-
-    def get_total_price(self, obj):
-        return sum(
-            item.product_dis_price * item.order_prod_count
-            for item in obj.orderprodlist_set.all()
-        )
 
 
 # ─── 주문 상세 조회 ──────────────────────────────────────
@@ -161,7 +170,7 @@ class OrderItemOutputSerializer(serializers.ModelSerializer):
         return obj.product_dis_price * obj.order_prod_count
 
 
-class OrderDetailSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(TotalPriceMixin, serializers.ModelSerializer):
     store_id = serializers.IntegerField(source='store_id_id')
     store_name = serializers.CharField(source='store_id.store_name')
     order_dt = serializers.DateTimeField(source='reg_dt')
@@ -171,9 +180,3 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'items', 'total_price']
-
-    def get_total_price(self, obj):
-        return sum(
-            item.product_dis_price * item.order_prod_count
-            for item in obj.orderprodlist_set.all()
-        )
