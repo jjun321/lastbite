@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/features/consumer/mypage/presentation/pages/consumer_accountpage.dart';
 
 class ConsumerMyPage extends StatelessWidget {
   const ConsumerMyPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // TODO: 백엔드 연동 후 실제 user_name을 받아오도록 수정
+    const String userName = 'User_name';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -19,7 +23,7 @@ class ConsumerMyPage extends StatelessWidget {
                   CircleAvatar(radius: 50, backgroundColor: Colors.grey[300]),
                   const SizedBox(width: 20),
                   const Text(
-                    '이름칸',
+                    userName,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -36,7 +40,13 @@ class ConsumerMyPage extends StatelessWidget {
               _buildMenuItem(
                 iconPath: 'assets/images/icon_profile.png',
                 title: '계정 관리',
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ConsumerAccountPage(),
+                    ),
+                  );
+                },
               ),
               const Divider(height: 1, color: Color(0xFFF1F1F1)),
               _buildMenuItem(
@@ -69,24 +79,6 @@ class ConsumerMyPage extends StatelessWidget {
             ]),
 
             const Spacer(),
-
-            // 하단 네비게이션 바 (Mockup)
-            Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey[200]!)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem('assets/images/icon_home.png', '홈', false),
-                  _buildNavItem('assets/images/icon_board.png', '제보게시판', false),
-                  _buildNavItem('assets/images/icon_order.png', '주문내역', false),
-                  _buildNavItem('assets/images/icon_mypage.png', '마이페이지', true),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -101,7 +93,7 @@ class ConsumerMyPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -149,25 +141,6 @@ class ConsumerMyPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildNavItem(String iconPath, String label, bool isActive) {
-    final color = isActive ? const Color(0xFF6DA06D) : const Color(0xFF999999);
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Image.asset(iconPath, width: 24, height: 24, color: color),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ],
     );
   }
 }
