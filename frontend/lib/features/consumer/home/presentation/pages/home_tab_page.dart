@@ -6,6 +6,7 @@ import 'package:frontend/features/consumer/home/presentation/widgets/location_pr
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/map_view.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/distance_filter_dialog.dart';
+import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 
 /// 홈 탭의 실제 콘텐츠를 표시한다.
 /// 리스트/지도 토글, 위치 프리셋, 필터, 가게 카드 등을 포함.
@@ -140,9 +141,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     );
   }
 
-  // ═══════════════════════════════════════════════
   // 찜(Favorite) 토글
-  // ═══════════════════════════════════════════════
 
   void _toggleFavorite(int index) {
     setState(() {
@@ -152,9 +151,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     });
   }
 
-  // ═══════════════════════════════════════════════
   // 거리 필터 다이얼로그
-  // ═══════════════════════════════════════════════
 
   Future<void> _showDistanceFilter() async {
     final result = await DistanceFilterDialog.show(
@@ -171,17 +168,13 @@ class _HomeTabPageState extends State<HomeTabPage> {
       final label = result == 0
           ? '전체'
           : result >= 1000
-              ? '${result ~/ 1000}km'
-              : '${result}m';
+          ? '${result ~/ 1000}km'
+          : '${result}m';
       if (mounted) {
         _showSnackBar('반경 $label 내 가게를 표시합니다.');
       }
     }
   }
-
-  // ═══════════════════════════════════════════════
-  // 빌드
-  // ═══════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -216,9 +209,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
         ),
 
         /// ─── 콘텐츠 영역 ───
-        Expanded(
-          child: _isListView ? _buildListView() : _buildMapView(),
-        ),
+        Expanded(child: _isListView ? _buildListView() : _buildMapView()),
       ],
     );
   }
@@ -232,7 +223,10 @@ class _HomeTabPageState extends State<HomeTabPage> {
         return StoreCard(
           store: _stores[index],
           onTap: () {
-            // TODO: 가게 상세 페이지로 이동
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ShopPage()),
+            );
           },
           onFavoriteTap: () => _toggleFavorite(index),
         );
@@ -247,7 +241,10 @@ class _HomeTabPageState extends State<HomeTabPage> {
       showAiRecommended: _showAiRecommended,
       apiKey: _googleMapsApiKey,
       onSelectTap: () {
-        // TODO: 가게 선택 로직
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ShopPage()),
+        );
       },
     );
   }
