@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/consumer/home/presentation/pages/home_tab_page.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/bottom_nav_bar.dart';
+import 'package:frontend/features/consumer/mypage/presentation/pages/consumer_mypage.dart';
 
-/// ------------------------------------------------------------
-/// 파일명: consumer_home_page.dart
-/// 위치: lib/features/consumer/home/presentation/pages/consumer_home_page.dart
-///
-/// 역할:
 /// 소비자 홈 화면의 최상위 Shell.
-/// 하단 네비게이션 바를 포함하고, 탭 전환을 관리한다.
-/// 현재 홈 탭만 실제 구현, 나머지 3개 탭은 빈 페이지.
-/// ------------------------------------------------------------
+/// 하단 네비게이션 바를 포함하고, 탭 전환을 관리
 
 class ConsumerHomePage extends StatefulWidget {
   const ConsumerHomePage({super.key});
@@ -23,11 +17,11 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   int _currentTabIndex = 0;
 
   /// 4개 탭 페이지
-  final List<Widget> _tabPages = [
+  late final List<Widget> _tabPages = [
     const HomeTabPage(),
     _buildPlaceholderPage('제보게시판', Icons.chat_bubble_outline),
     _buildPlaceholderPage('주문내역', Icons.receipt_long_outlined),
-    _buildPlaceholderPage('마이페이지', Icons.person_outline),
+    const ConsumerMyPage(),
   ];
 
   @override
@@ -35,10 +29,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
-        child: IndexedStack(
-          index: _currentTabIndex,
-          children: _tabPages,
-        ),
+        child: IndexedStack(index: _currentTabIndex, children: _tabPages),
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentTabIndex,
@@ -57,11 +48,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 64,
-            color: const Color(0xFFBDBDBD),
-          ),
+          Icon(icon, size: 64, color: const Color(0xFFBDBDBD)),
           const SizedBox(height: 16),
           Text(
             title,
@@ -74,10 +61,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           const SizedBox(height: 8),
           const Text(
             '준비 중입니다',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF999999),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
           ),
         ],
       ),
