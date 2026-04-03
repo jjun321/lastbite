@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:frontend/features/consumer/home/presentation/pages/store_model.dart';
+import 'package:frontend/data/store_model.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/view_toggle.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/location_preset_bar.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';

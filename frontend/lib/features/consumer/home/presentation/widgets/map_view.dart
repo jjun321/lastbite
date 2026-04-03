@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:frontend/features/consumer/home/presentation/pages/store_model.dart';
+import 'package:frontend/data/store_model.dart';
 
 /// 지도 뷰를 표시하는 위젯.
 /// Google Maps API 키가 설정되어 있으면 실제 지도를 표시하고,

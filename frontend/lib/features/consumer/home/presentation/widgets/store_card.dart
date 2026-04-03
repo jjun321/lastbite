@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/features/consumer/home/presentation/pages/store_model.dart';
+import 'package:frontend/data/store_model.dart';
 
 /// 홈 화면 리스트 뷰에서 가게 하나를 표현하는 카드 위젯.
 /// 이미지, 이름, 카테고리 태그, 별점, 마감 시간, 찜 아이콘을 표시한다.
