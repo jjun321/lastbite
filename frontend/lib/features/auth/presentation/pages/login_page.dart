@@ -141,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () {
                     // TODO: 백엔드 연동 후 실제 로그인 로직 구현
                     // 현재는 임시로 바로 홈 화면 이동
-                    context.go('/home');
+                    context.go('/owner-dashboard');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4FA75A),
