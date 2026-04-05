@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, RegisterView, RefreshTokenView, LogoutView, EmailCheckView, PasswordResetRequestView, PasswordResetConfirmCheckView, PasswordResetConfirmView
+from .views import LoginView, RegisterView, RefreshTokenView, LogoutView, EmailCheckView, PasswordResetRequestView, PasswordResetConfirmCheckView, PasswordResetConfirmView, UserProfileView, PasswordChangeView, ProfileImageUploadView, UserSavingsView
 
 urlpatterns = [
     path('login', LoginView.as_view(), name='login'),
@@ -10,4 +10,12 @@ urlpatterns = [
     path('password/reset-request', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('password/reset-confirm', PasswordResetConfirmCheckView.as_view(), name='password_reset_confirm_check'),
     path('password/reset-confirm', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+]
+
+# 마이페이지 라우팅 분리, prefix는 루트 urls.py에서 부여하는 방식
+users_urlpatterns = [
+    path('me',               UserProfileView.as_view(),       name='user-profile'),
+    path('me/password',      PasswordChangeView.as_view(),    name='password-change'),
+    path('me/profile-image', ProfileImageUploadView.as_view(),name='profile-image-upload'),
+    path('me/savings',       UserSavingsView.as_view(),       name='user-savings'),
 ]
