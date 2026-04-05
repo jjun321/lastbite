@@ -1,18 +1,25 @@
+import uuid, os
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.exceptions import TokenError
-from django.contrib.auth import authenticate
+from rest_framework.parsers import MultiPartParser
 from user.models.user import User
 from user.models.password_reset_token import PasswordResetToken
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from datetime import timedelta
-from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
+from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer,
+from common.response import success_response, error_response, extract_first_error
+from image.models.image import Image
+from order.models.order import Order
+from order.models.orderProdList import OrderProdList
+
 
 # 응답 규격에 유저 객체 정보도 들어가기에 커스텀 뷰 구조 만듦
 
@@ -254,4 +261,160 @@ class PasswordResetConfirmView(APIView):
 
         return Response(api_response(True, "성공", {
             "result": "비밀번호가 성공적으로 변경되었습니다."
+        }), status=status.HTTP_200_OK)
+
+# -------- 마이페이지 뷰
+
+class UserProfileView(APIView):
+    #GET /users/me  — 내 프로필 조회
+    #PUT /users/me  — 내 프로필 수정
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(
+            api_response(True, "성공", serializer.data),
+            status=status.HTTP_200_OK,
+        )
+
+    def put(self, request):
+        serializer = UserProfileUpdateSerializer(
+            request.user, data=request.data,
+            partial=True, context={'request': request},
+        )
+        if not serializer.is_valid():
+            return Response(
+                api_response(False, extract_first_error(serializer.errors)),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = serializer.save()
+        return Response(api_response(True, "성공", {
+            "user_id":    user.user_id,
+            "user_name":  user.user_name,
+            "user_email": user.user_email,
+            "user_phone": user.user_phone,
+        }), status=status.HTTP_200_OK)
+
+
+class PasswordChangeView(APIView):
+    #PATCH /users/me/password -> 로그인 상태에서 비밀번호 변경
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        serializer = PasswordChangeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                api_response(False, extract_first_error(serializer.errors)),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        current_password = serializer.validated_data['current_password']
+
+        # 현재 비밀번호 검증
+        if not user.check_password(current_password):
+            return Response(
+                api_response(False, "현재 비밀번호가 올바르지 않습니다."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+
+        return Response(api_response(True, "성공", {
+            "result": "비밀번호가 변경되었습니다."
+        }), status=status.HTTP_200_OK)
+
+
+class ProfileImageUploadView(APIView):
+    #POST /users/me/profile-image — 프로필 이미지 업로드
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser]
+
+    # 허용 확장자 및 최대 크기
+    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+    MAX_SIZE_BYTES      = 5 * 1024 * 1024  # 5MB
+
+    def post(self, request):
+        image_file = request.FILES.get('image_file')
+
+        if not image_file:
+            return Response(
+                api_response(False, "이미지 파일이 필요합니다."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ext = image_file.name.rsplit('.', 1)[-1].lower()
+        if ext not in self.ALLOWED_EXTENSIONS:
+            return Response(
+                api_response(False, "jpg, png, webp 형식만 업로드 가능합니다."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if image_file.size > self.MAX_SIZE_BYTES:
+            return Response(
+                api_response(False, "이미지 크기는 5MB 이하여야 합니다."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # UUID 파일명 생성 및 저장 경로 결정
+        uuid_name  = f"{uuid.uuid4()}.{ext}"
+        save_dir   = os.path.join(settings.MEDIA_ROOT, 'images')
+        os.makedirs(save_dir, exist_ok=True)
+        save_path  = os.path.join(save_dir, uuid_name)
+
+        with open(save_path, 'wb+') as f:
+            for chunk in image_file.chunks():
+                f.write(chunk)
+
+        img_path = f"/uploads/images/{uuid_name}"
+        img_url  = f"{settings.MEDIA_URL}images/{uuid_name}"
+
+        with transaction.atomic():
+            # Image 테이블에 레코드 생성
+            image = Image.objects.create(
+                user_id       = request.user,
+                img_name      = image_file.name,
+                img_url       = img_url,
+                img_path      = img_path,
+                img_uuid_name = uuid_name,
+            )
+            # 유저 프로필 이미지 갱신
+            request.user.profile_img_id = image.img_id
+            request.user.save(update_fields=['profile_img_id'])
+
+        return Response(api_response(True, "성공", {
+            "img_id":   image.img_id,
+            "img_name": image.img_name,
+            "img_url":  image.img_url,
+            "img_path": image.img_path,
+            "img_uuid": image.img_uuid_name,
+        }), status=status.HTTP_200_OK)
+
+
+class UserSavingsView(APIView):
+    #GET /users/me/savings — 절약 금액 합계 조회
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # S03(처리 완료)인 주문만 집계
+        completed_orders = Order.objects.filter(
+            user_id=request.user,
+            order_status='S03',
+        )
+        completed_count = completed_orders.count()
+
+        # 완료 주문의 order_id 목록
+        order_ids = completed_orders.values_list('order_id', flat=True)
+
+        # 계산식 Σ (ori - dis) × qty 구현
+        items = OrderProdList.objects.filter(order_id__in=order_ids)
+        total_savings = sum(
+            (item.product_ori_price - item.product_dis_price) * item.order_prod_count
+            for item in items
+        )
+
+        return Response(api_response(True, "성공", {
+            "total_savings":    total_savings,
+            "completed_orders": completed_count,
         }), status=status.HTTP_200_OK)

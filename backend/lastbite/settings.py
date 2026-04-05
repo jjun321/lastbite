@@ -135,3 +135,7 @@ PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
 
 # temp reset page, needs to be changed
 FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
+
+#사진등 설정시 사용할 media 설정. 필요할 경우 그 때 활성화하게 일단 주석처리
+#MEDIA_URL  = "/media/"
+#MEDIA_ROOT = BASE_DIR / "media"
