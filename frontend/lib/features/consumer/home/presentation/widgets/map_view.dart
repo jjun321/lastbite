@@ -1,34 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:frontend/features/consumer/home/presentation/pages/store_model.dart';
 
 /// 지도 뷰를 표시하는 위젯.
-/// Google Maps API 키가 설정되어 있으면 실제 지도를 표시하고,
+/// Naver Maps API 키가 설정되어 있으면 실제 지도를 표시하고,
 /// 미설정이면 placeholder를 보여준다.
 ///
 /// API 키 설정 방법:
 /// - Android: android/app/src/main/AndroidManifest.xml 에
-///   <meta-data android:name="com.google.android.geo.API_KEY"
-///              android:value="YOUR_API_KEY"/> 추가
-/// - iOS: ios/Runner/AppDelegate.swift 에
-///   GMSServices.provideAPIKey("YOUR_API_KEY") 추가
-/// - 또는 이 위젯의 apiKey 파라미터로 전달 (런타임 확인용)
+///   <meta-data android:name="com.naver.maps.map.CLIENT_ID"
+///              android:value="YOUR_CLIENT_ID"/> 추가
+/// - iOS: ios/Runner/AppDelegate.swift 에z
+///   NaverMapSdk.instance.initialize(clientId: "YOUR_CLIENT_ID") 추가
+/// - main.dart 에서 NaverMapSdk.instance.initialize(clientId: '...') 호출 필수
 
 class MapView extends StatefulWidget {
   final List<StoreModel> stores;
   final bool showAiRecommended;
   final VoidCallback? onSelectTap;
 
-  /// Google Maps API 키.
-  /// 빈 문자열이면 placeholder를 표시
-  final String apiKey;
-
   const MapView({
     super.key,
     required this.stores,
     this.showAiRecommended = false,
     this.onSelectTap,
-    this.apiKey = '',
   });
 
   @override
@@ -36,43 +31,40 @@ class MapView extends StatefulWidget {
 }
 
 class _MapViewState extends State<MapView> {
-  GoogleMapController? _mapController;
-
-  /// API 키 유효 여부 — 빈 문자열이 아니면 유효로 간주
-  bool get _hasApiKey => widget.apiKey.isNotEmpty;
+  NaverMapController? _mapController;
 
   /// 기본 카메라 위치 (학교 근처)
-  static const LatLng _defaultCenter = LatLng(37.5827, 127.0088);
+  static const NLatLng _defaultCenter = NLatLng(37.5827, 127.0088);
 
-  /// 가게 목록을 마커로 변환
-  Set<Marker> _buildMarkers() {
-    final markers = <Marker>{};
+  /// 가게 목록을 Naver Map 마커 Set으로 변환
+  Set<NMarker> _buildMarkers() {
+    final markers = <NMarker>{};
 
     for (int i = 0; i < widget.stores.length; i++) {
       final store = widget.stores[i];
       if (store.latitude == null || store.longitude == null) continue;
 
+      final marker = NMarker(
+        id: 'store_$i',
+        position: NLatLng(store.latitude!, store.longitude!),
+      );
+
+      /// 마커 캡션 설정
+      marker.setCaption(NOverlayCaption(text: store.name));
+
       /// 마커 색상 결정:
       /// - AI 추천 + 표시 활성: 빨강
+      /// - 내 현재 위치: 파랑
       /// - 일반 가게: 초록
-      /// - 사용자 위치 등: 노랑 (현재는 첫 번째 가게를 노랑으로 표시)
-      double hue;
       if (widget.showAiRecommended && store.isAiRecommended) {
-        hue = BitmapDescriptor.hueRed;
+        marker.setIconTintColor(Colors.red);
       } else if (i == 0) {
-        hue = BitmapDescriptor.hueYellow;
+        marker.setIconTintColor(Colors.yellow);
       } else {
-        hue = BitmapDescriptor.hueGreen;
+        marker.setIconTintColor(Colors.green);
       }
 
-      markers.add(
-        Marker(
-          markerId: MarkerId('store_$i'),
-          position: LatLng(store.latitude!, store.longitude!),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-          infoWindow: InfoWindow(title: store.name, snippet: store.closingTime),
-        ),
-      );
+      markers.add(marker);
     }
 
     return markers;
@@ -83,7 +75,7 @@ class _MapViewState extends State<MapView> {
     return Column(
       children: [
         /// ─── 지도 영역 ───
-        Expanded(child: _hasApiKey ? _buildGoogleMap() : _buildPlaceholder()),
+        Expanded(child: _buildNaverMap()),
 
         /// ─── 선택하기 버튼 ───
         Padding(
@@ -112,21 +104,23 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  /// 실제 Google Maps 위젯
-  Widget _buildGoogleMap() {
-    return GoogleMap(
-      onMapCreated: (controller) {
-        _mapController = controller;
-      },
-      initialCameraPosition: const CameraPosition(
-        target: _defaultCenter,
-        zoom: 14.5,
+  /// 실제 Naver Maps 위젯
+  Widget _buildNaverMap() {
+    return NaverMap(
+      options: const NaverMapViewOptions(
+        initialCameraPosition: NCameraPosition(
+          target: _defaultCenter,
+          zoom: 14.5,
+        ),
+        locationButtonEnable: false,
       ),
-      markers: _buildMarkers(),
-      myLocationEnabled: true,
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: false,
-      mapToolbarEnabled: false,
+      onMapReady: (controller) {
+        _mapController = controller;
+
+        /// 마커 추가
+        final markers = _buildMarkers();
+        controller.addOverlayAll(markers);
+      },
     );
   }
 
@@ -155,7 +149,7 @@ class _MapViewState extends State<MapView> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  '지도를 표시하려면\nGoogle Maps API 키를 설정하세요',
+                  '지도를 표시하려면\nNaver Maps API 키를 설정하세요',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -192,7 +186,7 @@ class _MapViewState extends State<MapView> {
                   spacing: 12,
                   children: [
                     _buildDummyMarker(Colors.green, '일반 가게'),
-                    _buildDummyMarker(Colors.yellow.shade700, '내 위치'),
+                    _buildDummyMarker(Colors.yellow, '내 위치'),
                     _buildDummyMarker(Colors.red, 'AI 추천'),
                   ],
                 ),
