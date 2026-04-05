@@ -40,7 +40,7 @@ class StoreModel {
   }
 }
 
-/// 테스트용 더미 데이터
+/// 테스트용 더미 데이터 (경희대 근처 좌표)
 List<StoreModel> dummyStores = [
   const StoreModel(
     name: '소금빵 가게',
@@ -48,8 +48,8 @@ List<StoreModel> dummyStores = [
     rating: 4.7,
     closingTime: '오후 6시 마감',
     isFavorite: false,
-    latitude: 43.6615,
-    longitude: -79.3950,
+    latitude: 37.5835,
+    longitude: 127.0100,
   ),
   const StoreModel(
     name: '달콤 베이커리',
@@ -57,8 +57,8 @@ List<StoreModel> dummyStores = [
     rating: 4.5,
     closingTime: '오후 7시 마감',
     isFavorite: false,
-    latitude: 43.6630,
-    longitude: -79.3920,
+    latitude: 37.5850,
+    longitude: 127.0070,
   ),
   const StoreModel(
     name: '행복한 빵집',
@@ -67,8 +67,8 @@ List<StoreModel> dummyStores = [
     closingTime: '오후 5시 마감',
     isFavorite: false,
     isAiRecommended: true,
-    latitude: 43.6590,
-    longitude: -79.3980,
+    latitude: 37.5810,
+    longitude: 127.0120,
   ),
   const StoreModel(
     name: '모닝글로리 베이커리',
@@ -76,8 +76,8 @@ List<StoreModel> dummyStores = [
     rating: 4.8,
     closingTime: '오후 8시 마감',
     isFavorite: false,
-    latitude: 43.6645,
-    longitude: -79.3890,
+    latitude: 37.5860,
+    longitude: 127.0050,
   ),
   const StoreModel(
     name: '밀가루 공방',
@@ -85,7 +85,7 @@ List<StoreModel> dummyStores = [
     rating: 4.1,
     closingTime: '오후 4시 마감',
     isFavorite: false,
-    latitude: 43.6570,
-    longitude: -79.4010,
+    latitude: 37.5800,
+    longitude: 127.0140,
   ),
 ];

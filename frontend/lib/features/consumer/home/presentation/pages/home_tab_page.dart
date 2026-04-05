@@ -37,35 +37,15 @@ class _HomeTabPageState extends State<HomeTabPage> {
   /// 현재 선택된 거리 필터 (미터 단위, 0 = 필터 없음)
   int _filterDistance = 0;
 
-  /// ──────────────────────────────────────────────
-  /// Google Maps API 키 설정
-  /// ──────────────────────────────────────────────
-  /// 실제 지도를 사용하려면 아래 값을 Google Maps API 키로 변경하세요.
-  /// 빈 문자열('')이면 placeholder 지도가 표시됩니다.
-  ///
-  /// API 키 발급: https://console.cloud.google.com/
-  /// 1. Google Cloud Console에서 프로젝트 생성
-  /// 2. Maps SDK for Android / iOS 활성화
-  /// 3. API 키 생성 후 아래에 입력
-  ///
-  /// 추가로 플랫폼별 설정도 필요합니다:
-  /// - Android: android/app/src/main/AndroidManifest.xml
-  ///   <meta-data android:name="com.google.android.geo.API_KEY"
-  ///              android:value="YOUR_API_KEY"/>
-  /// - iOS: ios/Runner/AppDelegate.swift
-  ///   GMSServices.provideAPIKey("YOUR_API_KEY")
-  /// ──────────────────────────────────────────────
-  static const String _googleMapsApiKey = '';
-
   @override
   void initState() {
     super.initState();
     _stores = List.from(dummyStores);
+    // 앱 시작 시 자동으로 현재 위치 가져오기
+    // _getCurrentLocation();
   }
 
-  // ═══════════════════════════════════════════════
   // 위치 서비스 관련 메서드
-  // ═══════════════════════════════════════════════
 
   /// 위치 권한을 확인하고 현재 위치를 가져온다
   Future<void> _getCurrentLocation() async {
@@ -142,7 +122,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 
   // 찜(Favorite) 토글
-
   void _toggleFavorite(int index) {
     setState(() {
       _stores[index] = _stores[index].copyWith(
@@ -152,7 +131,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 
   // 거리 필터 다이얼로그
-
   Future<void> _showDistanceFilter() async {
     final result = await DistanceFilterDialog.show(
       context,
@@ -239,7 +217,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     return MapView(
       stores: _stores,
       showAiRecommended: _showAiRecommended,
-      apiKey: _googleMapsApiKey,
+      currentPosition: _currentPosition,
       onSelectTap: () {
         Navigator.push(
           context,
