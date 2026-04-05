@@ -40,6 +40,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
   void initState() {
     super.initState();
     _stores = List.from(dummyStores);
+    // 앱 시작 시 자동으로 현재 위치 가져오기
+    // _getCurrentLocation();
   }
 
   // 위치 서비스 관련 메서드
@@ -212,6 +214,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     return MapView(
       stores: _stores,
       showAiRecommended: _showAiRecommended,
+      currentPosition: _currentPosition,
       onSelectTap: () {
         // TODO: 가게 선택 로직
       },

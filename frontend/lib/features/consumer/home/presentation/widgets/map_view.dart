@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:frontend/features/consumer/home/presentation/pages/store_model.dart';
 
 /// 지도 뷰를 표시하는 위젯.
@@ -18,12 +19,14 @@ class MapView extends StatefulWidget {
   final List<StoreModel> stores;
   final bool showAiRecommended;
   final VoidCallback? onSelectTap;
+  final Position? currentPosition;
 
   const MapView({
     super.key,
     required this.stores,
     this.showAiRecommended = false,
     this.onSelectTap,
+    this.currentPosition,
   });
 
   @override
@@ -36,33 +39,54 @@ class _MapViewState extends State<MapView> {
   /// 기본 카메라 위치 (학교 근처)
   static const NLatLng _defaultCenter = NLatLng(37.5827, 127.0088);
 
+  /// 커스텀 마커 아이콘 (에셋 이미지)
+  static const String _myLocationIcon = 'assets/images/icon_mylocation_pin.png';
+  static const String _storeIcon = 'assets/images/icon_storelocation_pin.png';
+  static const String _recommendIcon = 'assets/images/icon_recommend_pin.png';
+
   /// 가게 목록을 Naver Map 마커 Set으로 변환
-  Set<NMarker> _buildMarkers() {
+  Future<Set<NMarker>> _buildMarkers() async {
     final markers = <NMarker>{};
+
+    // 커스텀 아이콘 이미지 로드
+    final myLocationIconImage =
+        await NOverlayImage.fromAssetImage(_myLocationIcon);
+    final storeIconImage =
+        await NOverlayImage.fromAssetImage(_storeIcon);
+    final recommendIconImage =
+        await NOverlayImage.fromAssetImage(_recommendIcon);
+
+    // 현재 위치 마커 추가
+    if (widget.currentPosition != null) {
+      final myLocationMarker = NMarker(
+        id: 'my_location',
+        position: NLatLng(
+          widget.currentPosition!.latitude,
+          widget.currentPosition!.longitude,
+        ),
+        icon: myLocationIconImage,
+      );
+      myLocationMarker.setCaption(NOverlayCaption(text: '내 위치'));
+      markers.add(myLocationMarker);
+    }
 
     for (int i = 0; i < widget.stores.length; i++) {
       final store = widget.stores[i];
       if (store.latitude == null || store.longitude == null) continue;
 
+      // AI 추천 여부에 따라 아이콘 결정
+      final icon = (widget.showAiRecommended && store.isAiRecommended)
+          ? recommendIconImage
+          : storeIconImage;
+
       final marker = NMarker(
         id: 'store_$i',
         position: NLatLng(store.latitude!, store.longitude!),
+        icon: icon,
       );
 
       /// 마커 캡션 설정
       marker.setCaption(NOverlayCaption(text: store.name));
-
-      /// 마커 색상 결정:
-      /// - AI 추천 + 표시 활성: 빨강
-      /// - 내 현재 위치: 파랑
-      /// - 일반 가게: 초록
-      if (widget.showAiRecommended && store.isAiRecommended) {
-        marker.setIconTintColor(Colors.red);
-      } else if (i == 0) {
-        marker.setIconTintColor(Colors.yellow);
-      } else {
-        marker.setIconTintColor(Colors.green);
-      }
 
       markers.add(marker);
     }
@@ -104,21 +128,53 @@ class _MapViewState extends State<MapView> {
     );
   }
 
+  @override
+  void didUpdateWidget(covariant MapView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 현재 위치가 새로 들어왔을 때 카메라 이동 및 마커 갱신
+    if (widget.currentPosition != oldWidget.currentPosition &&
+        widget.currentPosition != null &&
+        _mapController != null) {
+      final pos = widget.currentPosition!;
+      _mapController!.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(
+          target: NLatLng(pos.latitude, pos.longitude),
+          zoom: 15,
+        ),
+      );
+      // 마커 전체 갱신 (비동기)
+      _refreshMarkers();
+    }
+  }
+
+  /// 마커를 비동기로 다시 빌드하여 지도에 반영
+  Future<void> _refreshMarkers() async {
+    if (_mapController == null) return;
+    final markers = await _buildMarkers();
+    _mapController!.clearOverlays();
+    _mapController!.addOverlayAll(markers);
+  }
+
   /// 실제 Naver Maps 위젯
   Widget _buildNaverMap() {
+    // 초기 카메라 위치: 현재 위치가 있으면 그곳, 없으면 기본값
+    final initialTarget = widget.currentPosition != null
+        ? NLatLng(
+            widget.currentPosition!.latitude,
+            widget.currentPosition!.longitude,
+          )
+        : _defaultCenter;
+
     return NaverMap(
-      options: const NaverMapViewOptions(
-        initialCameraPosition: NCameraPosition(
-          target: _defaultCenter,
-          zoom: 14.5,
-        ),
-        locationButtonEnable: false,
+      options: NaverMapViewOptions(
+        initialCameraPosition: NCameraPosition(target: initialTarget, zoom: 15),
+        locationButtonEnable: true,
       ),
-      onMapReady: (controller) {
+      onMapReady: (controller) async {
         _mapController = controller;
 
-        /// 마커 추가
-        final markers = _buildMarkers();
+        /// 마커 추가 (비동기 아이콘 로드)
+        final markers = await _buildMarkers();
         controller.addOverlayAll(markers);
       },
     );
@@ -182,14 +238,6 @@ class _MapViewState extends State<MapView> {
                 const SizedBox(height: 24),
 
                 /// 더미 마커들 표시
-                Wrap(
-                  spacing: 12,
-                  children: [
-                    _buildDummyMarker(Colors.green, '일반 가게'),
-                    _buildDummyMarker(Colors.yellow, '내 위치'),
-                    _buildDummyMarker(Colors.red, 'AI 추천'),
-                  ],
-                ),
               ],
             ),
           ),
