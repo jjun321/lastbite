@@ -2,7 +2,7 @@ from rest_framework import serializers
 from store.models.store import Store
 from store.models.store_working_time import StoreWorkingTime
 from store.utils import haversine_km, is_off_today, get_today_open_close
-
+from product.models.product import Product
 
 class StoreListSerializer(serializers.ModelSerializer):
     #GET /stores/ — 매장 목록
@@ -18,7 +18,7 @@ class StoreListSerializer(serializers.ModelSerializer):
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
-            'store_lat', 'store_lon',
+            'store_lat', 'store_long',
             'is_closed', 'distance_km',
             'today_open', 'today_close', 'is_off_today',
             'rep_product',
@@ -78,7 +78,7 @@ class StoreDetailSerializer(serializers.ModelSerializer):
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
-            'store_lat', 'store_lon',
+            'store_lat', 'store_long',
             'is_closed', 'is_off_today',
         ]
 
@@ -102,3 +102,53 @@ class StoreWorkingTimeSerializer(serializers.ModelSerializer):
 
     def get_close_time(self, obj):
         return obj.end_time.strftime('%H:%M')
+
+
+
+class ProductListSerializer(serializers.ModelSerializer):
+    """GET /stores/{store_id}/products/"""
+    product_id = serializers.IntegerField(source='pk')
+    category_id = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    discount_rate = serializers.SerializerMethodField()
+    img_url = serializers.SerializerMethodField()
+    is_available = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            'product_id',
+            'category_id',
+            'category_name',
+            'product_name',
+            'product_desc',
+            'product_ori_price',
+            'product_dis_price',
+            'discount_rate',
+            'product_count',   # product_qty에 해당하는 실제 필드명
+            'img_url',
+            'is_available',
+        ]
+
+    def get_category_id(self, obj):
+        return obj.category_id.category_id if obj.category_id else None
+
+    def get_category_name(self, obj):
+        return obj.category_id.category_name if obj.category_id else None
+
+    def get_discount_rate(self, obj):
+        ori = obj.product_ori_price or 0
+        dis = obj.product_dis_price or 0
+        if ori == 0:
+            return 0
+        return int((1 - dis / ori) * 100)
+
+    def get_img_url(self, obj):
+        # ProductImg → Image 테이블 JOIN
+        product_img = obj.productimg_set.select_related('img_id').first()
+        if not product_img:
+            return None
+        return product_img.img_id.img_url
+
+    def get_is_available(self, obj):
+        return (obj.product_count or 0) > 0
