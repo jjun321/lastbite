@@ -14,7 +14,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from datetime import timedelta
-from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer,
+from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer
 from common.response import success_response, error_response, extract_first_error
 from image.models.image import Image
 from order.models.order import Order
