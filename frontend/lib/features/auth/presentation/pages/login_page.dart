@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:frontend/features/auth/data/models/login_request.dart';
+import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
 
 /// 아이디/비밀번호 로그인 화면
 
@@ -14,6 +16,9 @@ class _LoginPageState extends State<LoginPage> {
   /// 비밀번호 표시/숨기기 상태
   bool _obscurePassword = true;
 
+  final _authRepo = AuthRepositoryImpl();
+  bool _isLoading = false;
+
   /// 텍스트 입력 컨트롤러
   final _idController = TextEditingController();
   final _pwController = TextEditingController();
@@ -23,6 +28,54 @@ class _LoginPageState extends State<LoginPage> {
     _idController.dispose();
     _pwController.dispose();
     super.dispose();
+  }
+
+  void _handleLogin() async {
+    final email = _idController.text.trim();
+    final password = _pwController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이메일과 비밀번호를 입력해주세요.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await _authRepo.login(
+        LoginRequest(userEmail: email, userPassword: password),
+      );
+
+      if (response.success && response.data != null) {
+        final user = response.data!.user;
+        
+        // 로그인 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${user.userName}님, 환영합니다!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        if (user.isOwner) {
+          context.go('/owner-dashboard');
+        } else {
+          context.go('/home');
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.message)),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인 중 오류가 발생했습니다.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -138,11 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: 백엔드 연동 후 실제 로그인 로직 구현
-                    // 현재는 임시로 바로 홈 화면 이동
-                    context.go('/home');
-                  },
+                  onPressed: _isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4FA75A),
                     foregroundColor: Colors.white,
@@ -151,10 +200,19 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Text(
-                    '로그인',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          '로그인',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                        ),
                 ),
               ),
 

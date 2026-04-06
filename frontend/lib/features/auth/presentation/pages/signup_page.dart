@@ -1,10 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:frontend/features/auth/data/models/signup_model.dart';
+import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
 
-/// 회원가입 화면
-/// 아이디, 이메일, 연락처, 비밀번호 입력 필드 포함
-/// 소비자/점주 선택 토글 포함
-
+// 회원가입 화면
+// 아이디, 이메일, 연락처, 비밀번호 입력 필드 포함
+// 소비자/점주 선택 토글 포함
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
 
@@ -13,12 +15,17 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
+  final AuthRepositoryImpl _authRepository = AuthRepositoryImpl();
+
   /// 비밀번호 표시/숨기기 상태
   bool _obscurePassword = true;
   bool _obscurePasswordConfirm = true;
 
   /// 사용자 유형 선택: true = 소비자, false = 점주
   bool _isConsumer = true;
+
+  /// 로딩 상태
+  bool _isLoading = false;
 
   /// 텍스트 입력 컨트롤러
   final _idController = TextEditingController();
@@ -90,6 +97,84 @@ class _SignupPageState extends State<SignupPage> {
       ),
       suffixIcon: suffixIcon,
     );
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _handleSignup() async {
+    final id = _idController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final pw = _pwController.text;
+    final pwConfirm = _pwConfirmController.text;
+
+    if (id.isEmpty ||
+        email.isEmpty ||
+        phone.isEmpty ||
+        pw.isEmpty ||
+        pwConfirm.isEmpty) {
+      _showError('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    if (pw != pwConfirm) {
+      _showError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // API 명세서에 따라서 user_type은 현재 백엔드 로직에서는 U01로 고정되거나 무시될 수 있으나
+      // 프론트의 소비자/점주 선택값은 나중을 위해 상태(_isConsumer)로 들고만 있습니다.
+      // 필요 시 백엔드 스펙에 추가되면 요청 payload에 포함해야 합니다.
+      final request = SignupRequest(
+        userName: id,
+        userEmail: email,
+        userPhone: phone,
+        userPassword: pw,
+        passwordConfirm: pwConfirm,
+      );
+
+      final response = await _authRepository.signup(request);
+
+      if (response.success && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('회원가입이 완료되었습니다.')));
+        context.go('/login');
+      } else if (mounted) {
+        _showError(response.message);
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        String errMsg = '회원가입에 실패했습니다. (${e.statusCode})';
+        if (e.response?.data != null && e.response?.data is Map) {
+          final data = e.response?.data as Map<String, dynamic>;
+          if (data.containsKey('message')) {
+            errMsg = data['message'];
+          }
+        }
+        _showError(errMsg);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('회원가입 중 오류가 발생했습니다: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -322,11 +407,7 @@ class _SignupPageState extends State<SignupPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: 회원가입 로직 구현
-                    // 회원가입 로직
-                    context.go('/login');
-                  },
+                  onPressed: _isLoading ? null : _handleSignup, // 회원가입 로직
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4FA75A),
                     foregroundColor: Colors.white,
@@ -334,11 +415,26 @@ class _SignupPageState extends State<SignupPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
+                    disabledBackgroundColor: const Color(
+                      0xFF4FA75A,
+                    ).withOpacity(0.5),
                   ),
-                  child: const Text(
-                    '가입 완료',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          '가입 완료',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
 
