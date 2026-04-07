@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:frontend/features/consumer/home/presentation/pages/home_tab_page.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/bottom_nav_bar.dart';
 import 'package:frontend/features/consumer/mypage/presentation/pages/consumer_mypage.dart';
+import 'package:frontend/features/consumer/order/presentation/pages/order_history_page.dart';
 
-/// 소비자 홈 화면의 최상위 Shell
-/// 하단 네비게이션 바를 포함하고, 탭 전환을 관리
-
+// 소비자 홈 화면의 최상위 Shell
+// 하단 네비게이션 바를 포함하고, 탭 전환을 관리
 class ConsumerHomePage extends StatefulWidget {
   const ConsumerHomePage({super.key});
 
@@ -20,7 +20,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   late final List<Widget> _tabPages = [
     const HomeTabPage(),
     _buildPlaceholderPage('제보게시판', Icons.chat_bubble_outline),
-    _buildPlaceholderPage('주문내역', Icons.chat_bubble_outline),
+    const OrderHistoryScreen(),
     const ConsumerMyPage(),
   ];
 
