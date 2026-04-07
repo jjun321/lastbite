@@ -6,6 +6,7 @@ import 'package:frontend/features/consumer/home/presentation/widgets/location_pr
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/map_view.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/distance_filter_dialog.dart';
+import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 
 /// 홈 탭의 실제 콘텐츠를 표시한다.
 /// 리스트/지도 토글, 위치 프리셋, 필터, 가게 카드 등을 포함.
@@ -199,7 +200,12 @@ class _HomeTabPageState extends State<HomeTabPage> {
       itemBuilder: (context, index) {
         return StoreCard(
           store: _stores[index],
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ShopPage()),
+            );
+          },
           onFavoriteTap: () => _toggleFavorite(index),
         );
       },
