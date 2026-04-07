@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/data/store_model.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:frontend/features/consumer/home/presentation/pages/store_model.dart';
 
 /// 지도 뷰를 표시하는 위젯.
 /// Naver Maps API 키가 설정되어 있으면 실제 지도를 표시하고,
@@ -49,12 +49,13 @@ class _MapViewState extends State<MapView> {
     final markers = <NMarker>{};
 
     // 커스텀 아이콘 이미지 로드
-    final myLocationIconImage =
-        await NOverlayImage.fromAssetImage(_myLocationIcon);
-    final storeIconImage =
-        await NOverlayImage.fromAssetImage(_storeIcon);
-    final recommendIconImage =
-        await NOverlayImage.fromAssetImage(_recommendIcon);
+    final myLocationIconImage = await NOverlayImage.fromAssetImage(
+      _myLocationIcon,
+    );
+    final storeIconImage = await NOverlayImage.fromAssetImage(_storeIcon);
+    final recommendIconImage = await NOverlayImage.fromAssetImage(
+      _recommendIcon,
+    );
 
     // 현재 위치 마커 추가
     if (widget.currentPosition != null) {

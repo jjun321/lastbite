@@ -8,6 +8,7 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 from dotenv import load_dotenv
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -15,7 +16,15 @@ SECRET_KEY = "django-insecure-=a--rdh+esu4a%bzudo!tp2k22u@%lpoz*@(kt&#-y(3&_2!v8
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '10.0.2.2',  # Android 에뮬레이터
+    '.ngrok.io',  # ngrok 무료 도메인
+    '.ngrok-free.app',  # ngrok 무료 플랜 신규 도메인
+    '.ngrok-free.dev'
+]
+
 AUTH_USER_MODEL = "user.User"
 
 INSTALLED_APPS = [
@@ -71,11 +80,11 @@ load_dotenv()
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DJANGO_DB_NAME", default=""),
-        "USER": config("DJANGO_DB_USER", default=""),
-        "PASSWORD": config("DJANGO_DB_PASSWORD", default=""),
-        "HOST": config("DJANGO_DB_HOST", default=""),
-        "PORT": config("DJANGO_DB_PORT", default="5432"),
+        'NAME': os.getenv("DB_NAME"),
+        'USER': os.getenv("DB_USER"),
+        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'HOST': os.getenv("DB_HOST"),
+        'PORT': os.getenv("DB_PORT"),
     }
 }
 
@@ -92,12 +101,6 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "common.response.custom_exception_handler",
 }
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
-    "ROTATE_REFRESH_TOKENS": False,
-    "AUTH_HEADER_TYPES": ("Bearer",),
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -120,6 +123,9 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'user_id',
+    'USER_ID_CLAIM': 'user_id',
 }
 
 # Email Settings (wiil be used in password resets)
@@ -135,3 +141,7 @@ PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
 
 # temp reset page, needs to be changed
 FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
+
+#사진등 설정시 사용할 media 설정. 필요할 경우 그 때 활성화하게 일단 주석처리
+#MEDIA_URL  = "/media/"
+#MEDIA_ROOT = BASE_DIR / "media"

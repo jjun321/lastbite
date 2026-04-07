@@ -101,3 +101,92 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if data.get('user_password') != data.get('password_confirm'):
             raise serializers.ValidationError({"password_confirm": "비밀번호가 일치하지 않습니다."})
         return data
+
+
+# -------- 마이페이지
+
+class ProfileImageSerializer(serializers.Serializer):
+    img_id   = serializers.IntegerField()
+    img_name = serializers.CharField()
+    img_url  = serializers.CharField()
+    img_path = serializers.CharField()
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    # GET /users/me -> 내 프로필 조회
+    profile_img = serializers.SerializerMethodField()
+    reg_dt      = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
+
+    class Meta:
+        model  = User
+        fields = [
+            'user_id', 'user_name', 'user_email',
+            'user_phone', 'user_type', 'profile_img', 'reg_dt',
+        ]
+
+    def get_profile_img(self, obj):
+        if not obj.profile_img_id:
+            return None
+        try:
+            from image.models.image import Image
+            img = Image.objects.get(img_id=obj.profile_img_id)
+            return ProfileImageSerializer(img).data
+        except Image.DoesNotExist:
+            return None
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    # PUT /users/me -> 프로필 수정 (모든 필드 optional임)
+    user_name  = serializers.CharField(min_length=2, max_length=20, required=False)
+    user_email = serializers.EmailField(max_length=50, required=False)
+    user_phone = serializers.CharField(max_length=30, required=False)
+
+    class Meta:
+        model  = User
+        fields = ['user_name', 'user_email', 'user_phone']
+
+    def validate_user_phone(self, value):
+        if not re.match(r'^010-\d{4}-\d{4}$', value):
+            raise serializers.ValidationError(
+                "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)"
+            )
+        return value
+
+    def validate_user_email(self, value):
+        # 자기 자신 이외 중복 체크
+        user = self.context['request'].user
+        if User.objects.exclude(pk=user.pk).filter(user_email=value).exists():
+            raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
+        return value
+
+    def update(self, instance, validated_data):
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save(update_fields=list(validated_data.keys()))
+        return instance
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    # PATCH /users/me/password — 로그인 상태에서 비밀번호 변경
+    current_password     = serializers.CharField(write_only=True)
+    new_password         = serializers.CharField(write_only=True, min_length=8, max_length=20)
+    new_password_confirm = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        regex = r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$'
+        if not re.match(regex, value):
+            raise serializers.ValidationError(
+                "비밀번호는 8~20자이며, 영문, 숫자, 특수문자를 모두 포함해야 합니다."
+            )
+        return value
+
+    def validate(self, data):
+        if data['new_password'] != data['new_password_confirm']:
+            raise serializers.ValidationError(
+                {"new_password_confirm": "새 비밀번호가 일치하지 않습니다."}
+            )
+        if data['current_password'] == data['new_password']:
+            raise serializers.ValidationError(
+                {"new_password": "VAL_001"}
+            )
+        return data

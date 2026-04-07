@@ -135,27 +135,30 @@ frontend/lib/
     │   │       └── widgets/
     │   │           ├── store_list_tile.dart        # 매장 리스트 아이템
     │   │           └── map_view.dart               # Naver Map 뷰
+    │   │           └── distance_filter_dialog.dart # 거리 필터 다이얼로그
+    │   │           └── bottom_nav_bar.dart         # 하단 네비게이션 바
+    │   │           └── location_preset_bar.dart    # 위치 프리셋 바
+    │   │           └── store_card.dart             # 매장 카드
+    │   │           └── view_toggle.dart            # 뷰 토글
     │   ├── store_detail/
     │   │   └── presentation/pages/
-    │   │       ├── store_detail_page.dart          # 매장 상세
+    │   │       ├── shop_page.dart          # 매장 상세
     │   │       └── product_detail_page.dart        # 상품 상세
     │   ├── order/
     │   │   └── presentation/pages/
-    │   │       ├── order_create_page.dart          # 예약 주문
+    │   │       ├── cart_page.dart                  # 장바구니
+    │   │       ├── complete_page.dart              # 주문 완료
+    │   │       ├── order_page.dart                 # 주문 상세
+    │   │       ├── order_detail_page.dart          # 예약 주문
     │   │       └── order_history_page.dart         # 주문 내역
-    │   ├── search/
-    │   │   └── presentation/pages/
-    │   │       └── search_page.dart                # 검색/필터
+    │   │       └── reservation_page.dart          # 주문 상태
     │   ├── wishlist/
     │   │   └── presentation/pages/
     │   │       └── wishlist_page.dart              # 찜 목록
     │   ├── board/
-    │   │   └── presentation/pages/
-    │   │       ├── board_list_page.dart            # 할인정보 제보 게시판
-    │   │       └── board_write_page.dart           # 게시글 작성
-    │   └── ai_recommend/
     │       └── presentation/pages/
-    │           └── ai_recommend_page.dart          # AI 추천 / 핫딜
+    │           ├── board_list_page.dart            # 할인정보 제보 게시판
+    │           └── board_write_page.dart           # 게시글 작성
     │
     └── owner/                         # 🏪 점주 기능
         ├── store_manage/
@@ -168,10 +171,16 @@ frontend/lib/
         │       └── product_list_page.dart          # 상품 목록 관리
         ├── order_manage/
         │   └── presentation/pages/
-        │       └── order_status_page.dart          # 주문 현황 관리
+        │       ├── order_order_detail_page.dart          # 주문 현황 관리
+        │       └── order_order_management_page.dart          # 주문 현황 관리
         └── dashboard/
             └── presentation/pages/
-                └── dashboard_page.dart             # 판매 현황 대시보드
+                └── owner_dashboard_page.dart             # 판매 현황 대시보드
+        └── mypage/
+            └── presentation/pages/
+                ├── owner_accountpage.dart                # 계정 관리
+                └── owner_mypage.dart                   # 마이페이지
+
 ```
 
 ### 기타 프로젝트 파일

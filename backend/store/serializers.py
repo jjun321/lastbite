@@ -2,7 +2,7 @@ from rest_framework import serializers
 from store.models.store import Store
 from store.models.store_working_time import StoreWorkingTime
 from store.utils import haversine_km, is_off_today, get_today_open_close
-
+from product.models.product import Product
 
 class StoreListSerializer(serializers.ModelSerializer):
     #GET /stores/ — 매장 목록
@@ -18,7 +18,7 @@ class StoreListSerializer(serializers.ModelSerializer):
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
-            'store_lat', 'store_lon',
+            'store_lat', 'store_long',
             'is_closed', 'distance_km',
             'today_open', 'today_close', 'is_off_today',
             'rep_product',
@@ -29,9 +29,9 @@ class StoreListSerializer(serializers.ModelSerializer):
         ref_lon = self.context.get('ref_lon')
         if ref_lat is None or ref_lon is None:
             return None
-        if obj.store_lat is None or obj.store_lon is None:
+        if obj.store_lat is None or obj.store_long is None:
             return None
-        return round(haversine_km(ref_lat, ref_lon, float(obj.store_lat), obj.store_lon), 2)
+        return round(haversine_km(ref_lat, ref_lon, float(obj.store_lat), obj.store_long), 2)
 
     def get_today_open(self, obj):
         if is_off_today(obj):
@@ -78,7 +78,7 @@ class StoreDetailSerializer(serializers.ModelSerializer):
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
-            'store_lat', 'store_lon',
+            'store_lat', 'store_long',
             'is_closed', 'is_off_today',
         ]
 
@@ -102,3 +102,5 @@ class StoreWorkingTimeSerializer(serializers.ModelSerializer):
 
     def get_close_time(self, obj):
         return obj.end_time.strftime('%H:%M')
+
+
