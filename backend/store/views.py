@@ -71,9 +71,9 @@ class StoreListView(APIView):
             # 2차: Haversine 정밀 필터 + 거리순 정렬
             with_dist = []
             for store in qs:
-                if store.store_lat is None or store.store_lon is None:
+                if store.store_lat is None or store.store_long is None:
                     continue
-                dist = haversine_km(lat, lon, float(store.store_lat), store.store_lon)
+                dist = haversine_km(lat, lon, float(store.store_lat), store.store_long)
                 if dist <= radius:
                     with_dist.append((dist, store))
             with_dist.sort(key=lambda x: x[0])
