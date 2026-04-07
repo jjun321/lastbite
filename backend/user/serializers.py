@@ -25,6 +25,7 @@ class LoginSerializer(TokenObtainPairSerializer):
             "user_id": self.user.user_id,
             "user_name": self.user.user_name,
             "user_email": self.user.user_email,
+            "user_phone": self.user.user_phone,
             "user_type": self.user.user_type
         }
         return data

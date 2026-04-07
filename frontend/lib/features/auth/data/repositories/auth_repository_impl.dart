@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:frontend/features/auth/data/datasources/auth_api.dart';
 import 'package:frontend/features/auth/data/models/login_model.dart';
@@ -44,6 +45,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'user_name': response.data!.user.userName,
           'user_email': response.data!.user.userEmail,
           'user_type': response.data!.user.userType,
+          'user_phone': response.data!.user.userPhone,
         }),
       );
     } else {
@@ -85,5 +87,77 @@ class AuthRepositoryImpl implements AuthRepository {
       return UserModel.fromJson(jsonDecode(userJson));
     }
     return null;
+  }
+
+  @override
+  Future<bool> uploadProfileImage(File file) async {
+    final token = await getAccessToken();
+    if (token == null) return false;
+    return await _remoteDataSource.uploadProfileImage(file, token);
+  }
+
+  @override
+  Future<bool> updateProfile(
+    String userName,
+    String userEmail,
+    String userPhone,
+  ) async {
+    final token = await getAccessToken();
+    if (token == null) return false;
+
+    final success = await _remoteDataSource.updateProfile(
+      userName,
+      userEmail,
+      userPhone,
+      token,
+    );
+
+    if (success) {
+      // 로컬 데이터 업데이트
+      final user = await getUser();
+      if (user != null) {
+        await _storage.write(
+          key: _userKey,
+          value: jsonEncode({
+            'user_id': user.userId,
+            'user_name': userName,
+            'user_email': userEmail,
+            'user_phone': userPhone,
+            'user_type': user.userType,
+          }),
+        );
+      }
+    }
+    return success;
+  }
+
+  @override
+  Future<UserModel?> fetchAndSyncUserProfile() async {
+    final token = await getAccessToken();
+    if (token == null) return null;
+    try {
+      final data = await _remoteDataSource.fetchUserProfile(token);
+      final user = UserModel(
+        userId: data['user_id'],
+        userName: data['user_name'],
+        userEmail: data['user_email'],
+        userPhone: data['user_phone'] ?? '',
+        userType: data['user_type'],
+      );
+
+      await _storage.write(
+        key: _userKey,
+        value: jsonEncode({
+          'user_id': user.userId,
+          'user_name': user.userName,
+          'user_email': user.userEmail,
+          'user_phone': user.userPhone,
+          'user_type': user.userType,
+        }),
+      );
+      return user;
+    } catch (e) {
+      return null;
+    }
   }
 }

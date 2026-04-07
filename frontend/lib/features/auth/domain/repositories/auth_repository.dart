@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:frontend/features/auth/data/models/login_model.dart';
 import 'package:frontend/features/auth/data/models/signup_model.dart';
 
@@ -9,4 +10,11 @@ abstract class AuthRepository {
   Future<void> logout();
   Future<String?> getAccessToken();
   Future<UserModel?> getUser();
+  Future<bool> uploadProfileImage(File file);
+  Future<bool> updateProfile(
+    String userName,
+    String userEmail,
+    String userPhone,
+  );
+  Future<UserModel?> fetchAndSyncUserProfile();
 }

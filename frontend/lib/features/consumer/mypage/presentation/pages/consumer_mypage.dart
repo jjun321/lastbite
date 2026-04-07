@@ -1,14 +1,37 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/consumer/mypage/presentation/pages/consumer_accountpage.dart';
+import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
 
-class ConsumerMyPage extends StatelessWidget {
+class ConsumerMyPage extends StatefulWidget {
   const ConsumerMyPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: 백엔드 연동 후 실제 user_name을 받아오도록 수정
-    const String userName = 'User_name';
+  State<ConsumerMyPage> createState() => _ConsumerMyPageState();
+}
 
+class _ConsumerMyPageState extends State<ConsumerMyPage> {
+  final _authRepo = AuthRepositoryImpl();
+  String _userName = 'User_name';
+  File? _profileImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final user = await _authRepo.getUser();
+    if (user != null && mounted) {
+      setState(() {
+        _userName = user.userName;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -20,11 +43,17 @@ class ConsumerMyPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Row(
                 children: [
-                  CircleAvatar(radius: 50, backgroundColor: Colors.grey[300]),
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: _profileImage != null
+                        ? FileImage(_profileImage!)
+                        : null,
+                  ),
                   const SizedBox(width: 20),
-                  const Text(
-                    userName,
-                    style: TextStyle(
+                  Text(
+                    _userName,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF333333),
@@ -40,12 +69,18 @@ class ConsumerMyPage extends StatelessWidget {
               _buildMenuItem(
                 iconPath: 'assets/images/icon_profile.png',
                 title: '계정 관리',
-                onTap: () {
-                  Navigator.of(context).push(
+                onTap: () async {
+                  final result = await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const ConsumerAccountPage(),
                     ),
                   );
+                  // 프로필 이미지가 수정되었을 경우 수정하여 반영
+                  if (result != null && result is File) {
+                    setState(() {
+                      _profileImage = result;
+                    });
+                  }
                 },
               ),
               const Divider(height: 1, color: Color(0xFFF1F1F1)),
