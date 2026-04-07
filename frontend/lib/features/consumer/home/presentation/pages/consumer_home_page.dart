@@ -7,8 +7,8 @@ import 'package:frontend/features/consumer/order/presentation/pages/order_histor
 // 소비자 홈 화면의 최상위 Shell
 // 하단 네비게이션 바를 포함하고, 탭 전환을 관리
 class ConsumerHomePage extends StatefulWidget {
-  const ConsumerHomePage({super.key});
-
+  /// 소비자 홈 화면의 최상위 Shell
+  /// 하단 네비게이션 바를 포함하고, 탭 전환을 관리
   @override
   State<ConsumerHomePage> createState() => _ConsumerHomePageState();
 }
