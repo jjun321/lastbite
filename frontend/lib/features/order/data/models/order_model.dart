@@ -58,12 +58,10 @@ class OrderModel {
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     return OrderModel(
-      // 모든 필드에 방어적 코드를 추가합니다.
       orderId: json['order_id'] ?? 0,
       storeId: json['store_id'] ?? 0,
       storeName: json['store_name'] ?? '알 수 없는 가게',
       orderStatus: json['order_status'] ?? 'S01',
-      // 날짜 데이터가 null로 올 경우를 대비해 현재 시간으로 방어 처리
       pickupDt: json['pickup_dt'] != null
           ? DateTime.parse(json['pickup_dt'])
           : DateTime.now(),

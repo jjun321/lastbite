@@ -22,11 +22,18 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     _loadOrders(); // 초기 데이터 로드
   }
 
-  // 데이터를 새로 불러오는 함수
   void _loadOrders() {
     setState(() {
       _ordersFuture = _repo.getOrders();
     });
+  }
+
+  // 숫자에 세 자릿수 콤마(,)를 넣어주는 유틸리티 함수
+  String _formatCurrency(int amount) {
+    return amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+    );
   }
 
   @override
@@ -34,7 +41,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        // 1. 위로 당겨서 새로고침 추가
         child: RefreshIndicator(
           onRefresh: () async {
             _loadOrders();
@@ -63,6 +69,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
               }
 
               final allOrders = snapshot.data ?? [];
+
+              // 예시로 totalPrice의 합계... 수정필요
+              final int totalSavedAmount = allOrders.fold(0, (sum, order) => sum + order.totalPrice);
+
               // S04 = 취소된 주문 필터링
               final displayItems = allOrders.where((o) {
                 return isReservedSelected
@@ -75,11 +85,11 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                   _buildHeader(),
                   Expanded(
                     child: SingleChildScrollView(
-                      // 2. 리스트가 비어있어도 스크롤(새로고침)이 가능하도록 설정
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Column(
                         children: [
-                          _buildSavingsCard('0'),
+                          _buildSavingsCard(_formatCurrency(totalSavedAmount)),
+
                           const SizedBox(height: 24),
                           _buildTabButtons(),
                           const SizedBox(height: 16),
@@ -149,7 +159,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${savings}원',
+            '$savings원',
             style: const TextStyle(
               fontFamily: 'Sen', fontSize: 36,
               color: Colors.white, fontWeight: FontWeight.bold,
@@ -169,8 +179,9 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
             label: '예약 및 확정',
             isSelected: isReservedSelected,
             onTap: () {
-              isReservedSelected = true;
-              _loadOrders(); // 3. 탭 전환 시 데이터 갱신
+              setState(() {
+                isReservedSelected = true;
+              });
             },
           ),
           const SizedBox(width: 12),
@@ -178,8 +189,9 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
             label: '취소된 주문',
             isSelected: !isReservedSelected,
             onTap: () {
-              isReservedSelected = false;
-              _loadOrders(); // 3. 탭 전환 시 데이터 갱신
+              setState(() {
+                isReservedSelected = false;
+              });
             },
           ),
         ],
@@ -297,7 +309,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                           child: Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
                         ),
                         Text(
-                          '${order.totalPrice}원',
+                          '${_formatCurrency(order.totalPrice)}원',
                           style: const TextStyle(
                             fontFamily: 'Sen', fontSize: 12, color: Color(0xFF6B6E82),
                           ),
