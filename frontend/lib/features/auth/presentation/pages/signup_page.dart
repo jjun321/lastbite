@@ -133,8 +133,8 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       // API 명세서에 따라서 user_type은 현재 백엔드 로직에서는 U01로 고정되거나 무시될 수 있으나
-      // 프론트의 소비자/점주 선택값은 나중을 위해 상태(_isConsumer)로 들고만 있습니다.
-      // 필요 시 백엔드 스펙에 추가되면 요청 payload에 포함해야 합니다.
+      // 프론트의 소비자/점주 선택값은 나중을 위해 상태(_isConsumer)로 들고만 있음
+      // 필요 시 백엔드 스펙에 추가되면 요청 payload에 포함해야 함
       final request = SignupRequest(
         userName: id,
         userEmail: email,
@@ -155,7 +155,7 @@ class _SignupPageState extends State<SignupPage> {
       }
     } on DioException catch (e) {
       if (mounted) {
-        String errMsg = '회원가입에 실패했습니다. (${e.statusCode})';
+        String errMsg = '회원가입에 실패했습니다. (${e.response?.statusCode})';
         if (e.response?.data != null && e.response?.data is Map) {
           final data = e.response?.data as Map<String, dynamic>;
           if (data.containsKey('message')) {

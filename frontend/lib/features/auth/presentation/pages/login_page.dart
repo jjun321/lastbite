@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:frontend/features/auth/data/models/login_request.dart';
+import 'package:frontend/features/auth/data/models/login_model.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
 
 /// 아이디/비밀번호 로그인 화면
@@ -35,9 +35,9 @@ class _LoginPageState extends State<LoginPage> {
     final password = _pwController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이메일과 비밀번호를 입력해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이메일과 비밀번호를 입력해주세요.')));
       return;
     }
 
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.success && response.data != null) {
         final user = response.data!.user;
-        
+
         // 로그인 성공 메시지 표시
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -65,14 +65,14 @@ class _LoginPageState extends State<LoginPage> {
           context.go('/home');
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(response.message)));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 중 오류가 발생했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 중 오류가 발생했습니다.')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -211,7 +211,10 @@ class _LoginPageState extends State<LoginPage> {
                         )
                       : const Text(
                           '로그인',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                 ),
               ),
