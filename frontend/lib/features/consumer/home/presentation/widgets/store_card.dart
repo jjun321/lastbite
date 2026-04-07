@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/data/store_model.dart';
-
-/// 홈 화면 리스트 뷰에서 가게 하나를 표현하는 카드 위젯.
-/// 이미지, 이름, 카테고리 태그, 별점, 마감 시간, 찜 아이콘을 표시한다.
+import 'package:frontend/features/store/data/models/store_model.dart';
 
 class StoreCard extends StatelessWidget {
   final StoreModel store;
@@ -36,32 +33,25 @@ class StoreCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// ─── 가게 이미지 영역 ───
+            /// ─── 가게 이미지 영역 (1번 디자인 그대로) ───
             Container(
               height: 160,
               width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0E0E0),
-                borderRadius: const BorderRadius.only(
+              decoration: const BoxDecoration(
+                color: Color(0xFFE0E0E0),
+                borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
-                image: store.imageUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(store.imageUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
+                // 현재 모델에 imageUrl 필드가 없으므로 1번의 아이콘 디자인만 적용
               ),
-              child: store.imageUrl == null
-                  ? const Center(
-                      child: Icon(
-                        Icons.storefront_outlined,
-                        size: 48,
-                        color: Color(0xFFBDBDBD),
-                      ),
-                    )
-                  : null,
+              child: const Center(
+                child: Icon(
+                  Icons.storefront_outlined,
+                  size: 48,
+                  color: Color(0xFFBDBDBD),
+                ),
+              ),
             ),
 
             /// ─── 가게 정보 영역 ───
@@ -70,13 +60,13 @@ class StoreCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// 가게 이름 + 찜 아이콘
+                  /// 가게 이름 + 찜 아이콘 (변수명: storeName)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
-                          store.name,
+                          store.storeName,
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -102,29 +92,32 @@ class StoreCard extends StatelessWidget {
 
                   const SizedBox(height: 6),
 
-                  /// 카테고리 태그
+                  /// 주소 표시 (1번의 카테고리 자리에 주소 연결)
                   Text(
-                    store.categories.join(' | '),
+                    store.storeAddress,
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF9E9E9E),
                       fontWeight: FontWeight.w400,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
 
                   const SizedBox(height: 8),
 
-                  /// 별점 + 마감 시간
+                  /// 거리 + 마감 시간 (1번의 별점 디자인 레이아웃 유지)
                   Row(
                     children: [
                       const Icon(
-                        Icons.star,
+                        Icons.place_outlined, // 별점 대신 거리 아이콘
                         size: 18,
-                        color: Color(0xFFFFC107),
+                        color: Color(0xFF9E9E9E),
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        store.rating.toString(),
+                        store.distanceKm != null
+                            ? '${store.distanceKm!.toStringAsFixed(1)}km'
+                            : '거리 정보 없음',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -133,7 +126,9 @@ class StoreCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        store.closingTime,
+                        store.todayClose != null
+                            ? '${store.todayClose} 마감'
+                            : '영업 종료',
                         style: const TextStyle(
                           fontSize: 13,
                           color: Color(0xFF9E9E9E),

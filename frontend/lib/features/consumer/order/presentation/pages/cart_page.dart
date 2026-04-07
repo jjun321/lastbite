@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/data/mock_data.dart';
-import 'package:frontend/data/models.dart';
+import 'package:frontend/features/cart/data/models/cart_model.dart';
+import 'package:frontend/features/cart/data/repositories/cart_repository_impl.dart';
 import 'reservation_page.dart';
 
-// 소비자 장바구니 페이지
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -12,8 +11,52 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  int get totalQuantity => myCart.fold(0, (sum, item) => sum + item.quantity);
-  int get totalPrice => myCart.fold(0, (sum, item) => sum + item.totalPrice);
+  final _repo = CartRepositoryImpl();
+  CartModel? _cart;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCart();
+  }
+
+  Future<void> _fetchCart() async {
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final cart = await _repo.getCart();
+      setState(() { _cart = cart; _isLoading = false; });
+    } catch (e) {
+      setState(() { _error = '장바구니를 불러오지 못했습니다.'; _isLoading = false; });
+    }
+  }
+
+  Future<void> _updateQuantity(CartItemModel item, int newQty) async {
+    try {
+      await _repo.updateCartItem(cartItemId: item.cartItemId, quantity: newQty);
+      await _fetchCart(); // 갱신
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수량 변경에 실패했습니다.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteItem(CartItemModel item) async {
+    try {
+      await _repo.deleteCartItem(item.cartItemId);
+      await _fetchCart();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('삭제에 실패했습니다.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,60 +67,57 @@ class _CartScreenState extends State<CartScreen> {
           children: [
             // 상단 헤더
             Positioned(
-              top: 34,
-              left: 24,
-              right: 24,
+              top: 34, left: 24, right: 24,
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 45,
-                      height: 45,
+                      width: 45, height: 45,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFECF0F4),
-                        shape: BoxShape.circle,
+                        color: Color(0xFFECF0F4), shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 18,
-                        color: Color(0xFF181C2E),
-                      ),
+                      child: const Icon(Icons.arrow_back_ios_new,
+                          size: 18, color: Color(0xFF181C2E)),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text(
-                    '장바구니',
-                    style: TextStyle(
-                      fontFamily: 'Sen',
-                      fontSize: 17,
-                      color: Color(0xFF181C2E),
-                    ),
-                  ),
+                  const Text('장바구니',
+                      style: TextStyle(fontFamily: 'Sen', fontSize: 17, color: Color(0xFF181C2E))),
                 ],
               ),
             ),
 
             // 장바구니 리스트
             Positioned(
-              top: 100,
-              left: 21,
-              right: 21,
-              bottom: 200,
-              child: myCart.isEmpty
-                  ? const Center(child: Text("장바구니가 비어있습니다."))
-                  : ListView.builder(
-                      itemCount: myCart.length,
-                      itemBuilder: (context, index) =>
-                          _buildCartItem(myCart[index]),
+              top: 100, left: 21, right: 21, bottom: 200,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_error!),
+                    TextButton(
+                      onPressed: _fetchCart,
+                      child: const Text('다시 시도'),
                     ),
+                  ],
+                ),
+              )
+                  : (_cart == null || _cart!.items.isEmpty)
+                  ? const Center(child: Text('장바구니가 비어있습니다.'))
+                  : ListView.builder(
+                itemCount: _cart!.items.length,
+                itemBuilder: (context, index) =>
+                    _buildCartItem(_cart!.items[index]),
+              ),
             ),
 
-            // 하단 요약 영역
+            // 하단 요약
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+              bottom: 0, left: 0, right: 0,
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: const BoxDecoration(
@@ -88,7 +128,6 @@ class _CartScreenState extends State<CartScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 총 수량 및 가격 요약 바
                     Container(
                       height: 34,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -99,39 +138,26 @@ class _CartScreenState extends State<CartScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text.rich(
-                            TextSpan(
-                              text: '총 수량 ',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF181C2E),
+                          Text.rich(TextSpan(
+                            text: '총 수량 ',
+                            style: const TextStyle(fontSize: 14, color: Color(0xFF181C2E)),
+                            children: [
+                              TextSpan(
+                                text: '${_cart?.totalQuantity ?? 0}',
+                                style: const TextStyle(
+                                    color: Color(0xFF4FA55B), fontWeight: FontWeight.bold),
                               ),
-                              children: [
-                                TextSpan(
-                                  text: '$totalQuantity',
-                                  style: const TextStyle(
-                                    color: Color(0xFF4FA55B),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const TextSpan(text: '개'),
-                              ],
-                            ),
-                          ),
+                              const TextSpan(text: '개'),
+                            ],
+                          )),
                           Row(
                             children: [
-                              const Text(
-                                '총 금액',
-                                style: TextStyle(fontSize: 15),
-                              ),
+                              const Text('총 금액', style: TextStyle(fontSize: 15)),
                               const SizedBox(width: 20),
                               Text(
-                                '$totalPrice원',
+                                '${_cart?.totalPrice ?? 0}원',
                                 style: const TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                    fontSize: 15, color: Colors.red, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -139,13 +165,14 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // 예약하기 버튼
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: _cart == null || _cart!.items.isEmpty
+                          ? null
+                          : () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ReservationScreen(),
+                            builder: (_) => ReservationScreen(cart: _cart!),
                           ),
                         );
                       },
@@ -153,17 +180,11 @@ class _CartScreenState extends State<CartScreen> {
                         backgroundColor: const Color(0xFF4FA55B),
                         minimumSize: const Size(double.infinity, 48),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                            borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: const Text(
-                        '예약하기',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      child: const Text('예약하기',
+                          style: TextStyle(color: Colors.white, fontSize: 16,
+                              fontWeight: FontWeight.w500)),
                     ),
                   ],
                 ),
@@ -175,8 +196,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 개별 아이템 디자인
-  Widget _buildCartItem(CartItem cartItem) {
+  Widget _buildCartItem(CartItemModel item) {
     return Container(
       height: 70,
       margin: const EdgeInsets.only(bottom: 12),
@@ -192,37 +212,28 @@ class _CartScreenState extends State<CartScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  cartItem.menu.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(item.productName,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 5),
                 Row(
                   children: [
                     GestureDetector(
-                      onTap: () => setState(() {
-                        if (cartItem.quantity > 1)
-                          cartItem.quantity--;
-                        else
-                          myCart.remove(cartItem);
-                      }),
+                      onTap: () {
+                        if (item.quantity > 1) {
+                          _updateQuantity(item, item.quantity - 1);
+                        } else {
+                          _deleteItem(item);
+                        }
+                      },
                       child: const Icon(Icons.remove_circle_outline, size: 22),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        '${cartItem.quantity}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: Text('${item.quantity}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                     GestureDetector(
-                      onTap: () => setState(() => cartItem.quantity++),
+                      onTap: () => _updateQuantity(item, item.quantity + 1),
                       child: const Icon(Icons.add_circle_outline, size: 22),
                     ),
                   ],
@@ -235,21 +246,12 @@ class _CartScreenState extends State<CartScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               GestureDetector(
-                onTap: () => setState(() => myCart.remove(cartItem)),
-                child: const Icon(
-                  Icons.cancel_outlined,
-                  size: 20,
-                  color: Colors.grey,
-                ),
+                onTap: () => _deleteItem(item),
+                child: const Icon(Icons.cancel_outlined, size: 20, color: Colors.grey),
               ),
               const SizedBox(height: 5),
-              Text(
-                '${cartItem.totalPrice}원',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              Text('${item.subtotal}원',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
             ],
           ),
         ],
