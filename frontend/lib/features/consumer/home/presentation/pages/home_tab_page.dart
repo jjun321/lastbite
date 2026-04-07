@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:frontend/data/store_model.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/view_toggle.dart';
@@ -6,7 +7,6 @@ import 'package:frontend/features/consumer/home/presentation/widgets/location_pr
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/map_view.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/distance_filter_dialog.dart';
-import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 
 /// 홈 탭의 실제 콘텐츠를 표시한다.
 /// 리스트/지도 토글, 위치 프리셋, 필터, 가게 카드 등을 포함.
@@ -124,9 +124,20 @@ class _HomeTabPageState extends State<HomeTabPage> {
   // 찜(Favorite) 토글
   void _toggleFavorite(int index) {
     setState(() {
-      _stores[index] = _stores[index].copyWith(
+      final updatedStore = _stores[index].copyWith(
         isFavorite: !_stores[index].isFavorite,
       );
+      _stores[index] = updatedStore;
+
+      // 즐겨찾기 페이지 등 다른 곳에서도 반영되도록 dummyStores 수정
+      final dummyIndex = dummyStores.indexWhere(
+        (s) => s.name == updatedStore.name,
+      );
+      if (dummyIndex != -1) {
+        dummyStores[dummyIndex] = dummyStores[dummyIndex].copyWith(
+          isFavorite: updatedStore.isFavorite,
+        );
+      }
     });
   }
 
@@ -203,7 +214,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ShopPage()),
+              MaterialPageRoute(builder: (context) => const ShopPage()),
             );
           },
           onFavoriteTap: () => _toggleFavorite(index),
