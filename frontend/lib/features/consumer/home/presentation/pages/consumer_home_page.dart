@@ -43,30 +43,4 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       ),
     );
   }
-
-  /// 미구현 탭용 placeholder 페이지
-  static Widget _buildPlaceholderPage(String title, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: const Color(0xFFBDBDBD)),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF666666),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '준비 중입니다',
-            style: TextStyle(fontSize: 14, color: Color(0xFF999999)),
-          ),
-        ],
-      ),
-    );
-  }
 }
