@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// 제보하기 페이지
+
 class ReportFormPage extends StatelessWidget {
   const ReportFormPage({super.key});
 

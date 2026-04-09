@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'report_form_page.dart';
-import '../../data/mock_data.dart';
-import '../../data/models.dart';
+import 'package:frontend/data/mock_data.dart';
+import 'package:frontend/data/models.dart';
+
+// 제보게시판 페이지
 
 class ReportBoardPage extends StatefulWidget {
   const ReportBoardPage({super.key});
