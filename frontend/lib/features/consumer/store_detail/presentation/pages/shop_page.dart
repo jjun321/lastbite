@@ -15,6 +15,9 @@ class _ShopPageState extends State<ShopPage> {
   final _repo = StoreRepositoryImpl();
   late Future<StoreModel> _storeFuture;
 
+  // 즐겨찾기 상태 변수
+  bool _isFavorite = false;
+
   @override
   void initState() {
     super.initState();
@@ -29,13 +32,9 @@ class _ShopPageState extends State<ShopPage> {
         child: FutureBuilder<StoreModel>(
           future: _storeFuture,
           builder: (context, snapshot) {
-
-            // 로딩 중
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-
-            // 에러
             if (snapshot.hasError) {
               return Center(
                 child: Column(
@@ -54,13 +53,10 @@ class _ShopPageState extends State<ShopPage> {
                 ),
               );
             }
-
-            // 데이터 없음
             if (!snapshot.hasData) {
               return const Center(child: Text('가게 정보가 없습니다.'));
             }
 
-            // 정상
             return _buildBody(context, snapshot.data!);
           },
         ),
@@ -111,7 +107,7 @@ class _ShopPageState extends State<ShopPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 가게 이미지 (추후 연결)
+                // 가게 이미지
                 Container(
                   width: double.infinity,
                   height: 223,
@@ -122,62 +118,46 @@ class _ShopPageState extends State<ShopPage> {
                   ),
                 ),
 
-                // 가게 이름
+                // 가게 이름 및 하트 아이콘
                 Padding(
-                  padding: const EdgeInsets.only(left: 24, top: 20),
-                  child: Text(
-                    store.storeName,
-                    style: const TextStyle(
-                      fontFamily: 'Sen',
-                      fontSize: 20,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF181C2E),
-                    ),
-                  ),
-                ),
-
-                // 영업 상태
-                Padding(
-                  padding: const EdgeInsets.only(left: 24, top: 6),
+                  padding: const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 10),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: store.isClosed || store.isOffToday
-                              ? const Color(0xFFFFEEEE)
-                              : const Color(0xFFEAFBF0),
-                          borderRadius: BorderRadius.circular(4),
+                      Text(
+                        store.storeName,
+                        style: const TextStyle(
+                          fontFamily: 'Sen',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF181C2E),
                         ),
-                        child: Text(
-                          store.isOffToday
-                              ? '휴무일'
-                              : store.isClosed
-                              ? '마감'
-                              : '영업중',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: store.isClosed || store.isOffToday
-                                ? Colors.red
-                                : const Color(0xFF11A94D),
-                          ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isFavorite = !_isFavorite;
+                          });
+                        },
+                        child: Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: _isFavorite ? Colors.red : const Color(0xFF181C2E),
+                          size: 28,
                         ),
                       ),
                     ],
                   ),
                 ),
 
+
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: Divider(color: Color(0xFFA0A5BA), thickness: 1),
                 ),
 
-                // 주소
+                // 주소 섹션
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -208,12 +188,9 @@ class _ShopPageState extends State<ShopPage> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: GestureDetector(
-                          onTap: () {
-                            // 네이버지도 연결 (추후)
-                          },
+                          onTap: () {},
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE2E3E5),
                               borderRadius: BorderRadius.circular(4),
@@ -221,13 +198,9 @@ class _ShopPageState extends State<ShopPage> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('네이버지도',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF32343E))),
+                                Text('네이버지도', style: TextStyle(fontSize: 12, color: Color(0xFF32343E))),
                                 SizedBox(width: 4),
-                                Icon(Icons.north_east,
-                                    size: 14, color: Color(0xFF32343E)),
+                                Icon(Icons.north_east, size: 14, color: Color(0xFF32343E)),
                               ],
                             ),
                           ),
@@ -237,7 +210,7 @@ class _ShopPageState extends State<ShopPage> {
                   ),
                 ),
 
-                // 지도 placeholder
+                // 지도 Placeholder
                 Container(
                   width: double.infinity,
                   height: 188,
@@ -245,12 +218,10 @@ class _ShopPageState extends State<ShopPage> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFEAFBF0),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: const Color(0xFF11A94D), width: 1),
+                    border: Border.all(color: const Color(0xFF11A94D), width: 1),
                   ),
                   child: const Center(
-                    child: Icon(Icons.location_on,
-                        color: Color(0xFF11A94D), size: 40),
+                    child: Icon(Icons.location_on, color: Color(0xFF11A94D), size: 40),
                   ),
                 ),
                 const SizedBox(height: 100),
@@ -259,12 +230,10 @@ class _ShopPageState extends State<ShopPage> {
           ),
         ),
 
-        // 주문하기 버튼
+        // 주문하기 버튼 (영업 상태에 따른 비활성화 로직은 유지됨)
         Padding(
           padding: const EdgeInsets.all(24.0),
           child: ElevatedButton(
-            // 마감/휴무일이면 버튼 비활성화
-            // shop_page.dart 주문하기 버튼 onPressed
             onPressed: store.isClosed || store.isOffToday
                 ? null
                 : () {
