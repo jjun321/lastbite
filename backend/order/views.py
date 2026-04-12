@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from common.response import error_response, extract_first_error, success_response
+from notification.utils import notify_order_cancelled, notify_order_received
 from order.models.order import Order
 from order.serializers import (
     OrderCreateSerializer,
@@ -16,21 +17,23 @@ from product.models.product import Product
 
 def get_order_or_404(order_id, user):
     """
-    주문 조회 헬퍼 함수
-    OrderDetailView, OrderCancelView 양쪽에서 동일한 조회 로직이
-    중복되어 함수로 분리
-    조회 성공 시 order 반환, 실패 시 None 반환
+    주문 조회 헬퍼 함수.
+    store_id 를 select_related 로 미리 로드해
+    notify_order_received 에서 발생하는 추가 쿼리를 방지.
+    조회 성공 시 order 반환, 실패 시 None 반환.
     """
     try:
-        return Order.objects.get(order_id=order_id, user_id=user)
+        return Order.objects.select_related(
+            "store_id", "store_id__user_id"
+        ).get(order_id=order_id, user_id=user)
     except Order.DoesNotExist:
         return None
 
 
 class OrderView(APIView):
     """
-    POST /orders  - 주문 생성
-    GET  /orders  - 내 주문 목록 조회
+    POST /orders — 주문 생성
+    GET  /orders — 내 주문 목록 조회
     """
     permission_classes = [IsAuthenticated]
 
@@ -43,6 +46,14 @@ class OrderView(APIView):
             )
 
         order, total_price = serializer.save()
+
+        # N01: 주문 접수 알림 → 점주에게 발송
+        # 알림 실패가 주문 응답을 막으면 안 되므로 예외를 조용히 처리
+        try:
+            notify_order_received(order)
+        except Exception:
+            pass
+
         return success_response(
             data={
                 "order_id": order.order_id,
@@ -77,7 +88,7 @@ class OrderView(APIView):
 
 class OrderDetailView(APIView):
     """
-    GET /orders/{order_id} - 주문 상세 조회
+    GET /orders/{order_id} — 주문 상세 조회
     """
     permission_classes = [IsAuthenticated]
 
@@ -94,7 +105,7 @@ class OrderDetailView(APIView):
 
 class OrderCancelView(APIView):
     """
-    PATCH /orders/{order_id}/cancel - 주문 취소
+    PATCH /orders/{order_id}/cancel — 주문 취소
     S01 상태에서만 취소 가능, S02 이후 취소 불가 (ORD_002)
     """
     permission_classes = [IsAuthenticated]
@@ -131,6 +142,13 @@ class OrderCancelView(APIView):
 
             order.order_status = 'S04'
             order.save()
+
+        # N03: 주문 취소 알림 → 소비자에게 발송
+        # 트랜잭션 외부에서 호출 (알림 실패가 취소 롤백을 유발하면 안 됨)
+        try:
+            notify_order_cancelled(order)
+        except Exception:
+            pass
 
         return success_response(
             data={

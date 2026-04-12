@@ -1,0 +1,12 @@
+NOTIFICATION_TYPE_CHOICE = [
+    ('N01', '주문 접수'),
+    ('N02', '주문 처리 완료'),
+    ('N03', '주문 취소'),
+    ('N04', '즐겨찾기 매장 신규 상품'),
+]
+
+TARGET_TYPE_CHOICE = [
+    ('ORDER', '주문'),
+    ('STORE', '매장'),
+    ('PRODUCT', '상품'),
+]

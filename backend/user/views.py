@@ -17,6 +17,7 @@ from datetime import timedelta
 from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer
 from common.response import success_response, error_response, extract_first_error
 from image.models.image import Image
+from notification.utils import create_default_notification_settings
 from order.models.order import Order
 from order.models.orderProdList import OrderProdList
 
@@ -56,6 +57,8 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            # 회원가입 완료 시 알림 수신 설정 기본값 생성 (N01~N04 전체 is_active=True)
+            create_default_notification_settings(user)
             return Response(api_response(True, "성공", {
                 "user_id": user.user_id,
                 "user_name": user.user_name,
