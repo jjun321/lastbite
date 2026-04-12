@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from common.response import error_response, extract_first_error, success_response
+from notification.utils import notify_order_cancelled, notify_order_received
 from order.models.order import Order
 from order.serializers import (
     OrderCreateSerializer,
@@ -43,6 +44,14 @@ class OrderView(APIView):
             )
 
         order, total_price = serializer.save()
+
+        # N01: 주문 접수 알림 → 점주에게 발송
+        # 알림 실패가 주문 응답을 막으면 안 되므로 예외를 조용히 처리
+        try:
+            notify_order_received(order)
+        except Exception:
+            pass
+
         return success_response(
             data={
                 "order_id": order.order_id,
@@ -131,6 +140,13 @@ class OrderCancelView(APIView):
 
             order.order_status = 'S04'
             order.save()
+
+        # N03: 주문 취소 알림 → 소비자에게 발송
+        # 트랜잭션 외부에서 호출 (알림 실패가 취소 롤백을 유발하면 안 됨)
+        try:
+            notify_order_cancelled(order)
+        except Exception:
+            pass
 
         return success_response(
             data={

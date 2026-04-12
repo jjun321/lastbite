@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "cart",
     "common",
     "image",
+    "notification",
 ]
 
 MIDDLEWARE = [
