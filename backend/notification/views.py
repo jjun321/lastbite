@@ -3,7 +3,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from common.response import error_response, extract_first_error, success_response
-from notification.models.choices import NOTIFICATION_TYPE_CHOICE
 from notification.models.notification import Notification
 from notification.models.notification_log import NotificationLog
 from notification.serializers import (
@@ -11,40 +10,24 @@ from notification.serializers import (
     NotificationSettingSerializer,
     NotificationSettingUpdateSerializer,
 )
-from notification.utils import create_default_notification_settings
+from notification.utils import ensure_notification_settings
 
 
 class NotificationSettingsView(APIView):
     """
-    GET  /notifications/settings/ — 내 알림 설정 목록 조회
+    GET   /notifications/settings/ — 내 알림 설정 목록 조회
     PATCH /notifications/settings/ — 알림 설정 일괄 변경
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # 설정 행이 없는 경우 기본값 생성 (안전망)
-        existing_types = set(
-            Notification.objects.filter(user_id=request.user)
-            .values_list("notification_type", flat=True)
-        )
-        all_types = {code for code, _ in NOTIFICATION_TYPE_CHOICE}
-        missing = all_types - existing_types
-        if missing:
-            Notification.objects.bulk_create(
-                [
-                    Notification(
-                        user_id=request.user,
-                        notification_type=t,
-                        is_active=True,
-                    )
-                    for t in missing
-                ],
-                ignore_conflicts=True,
-            )
+        # 누락된 알림 타입 설정 행 보완 (신규 타입 추가·구버전 가입자 안전망)
+        ensure_notification_settings(request.user)
 
-        settings = Notification.objects.filter(user_id=request.user).order_by(
-            "notification_type"
-        )
+        settings = Notification.objects.filter(
+            user_id=request.user
+        ).order_by("notification_type")
+
         serializer = NotificationSettingSerializer(settings, many=True)
         return success_response(data=serializer.data)
 
@@ -78,20 +61,26 @@ class NotificationSettingsView(APIView):
 
 class NotificationLogView(APIView):
     """
-    GET   /notifications/        — 내 알림 로그 목록 조회
-    PATCH /notifications/read/   — 알림 전체 읽음 처리
+    GET /notifications/ — 내 알림 로그 목록 조회 (페이지네이션)
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        page = int(request.query_params.get("page", 0))
-        size = int(request.query_params.get("size", 20))
+        try:
+            page = max(0, int(request.query_params.get("page", 0)))
+            size = min(int(request.query_params.get("size", 20)), 50)
+        except ValueError:
+            return error_response(
+                message="page/size 값이 올바르지 않습니다.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
 
-        logs = NotificationLog.objects.filter(user_id=request.user).select_related(
-            "notification_id"
-        )
+        logs = NotificationLog.objects.filter(
+            user_id=request.user
+        ).select_related("notification_id")
+
         total = logs.count()
-        paged = logs[page * size : (page + 1) * size]
+        paged = logs[page * size:(page + 1) * size]
 
         serializer = NotificationLogSerializer(paged, many=True)
         return success_response(
@@ -112,7 +101,8 @@ class NotificationReadAllView(APIView):
 
     def patch(self, request):
         updated_count = NotificationLog.objects.filter(
-            user_id=request.user, is_read=False
+            user_id=request.user,
+            is_read=False,
         ).update(is_read=True)
 
         return success_response(
