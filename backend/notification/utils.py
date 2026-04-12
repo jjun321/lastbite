@@ -2,34 +2,59 @@
 notification/utils.py
 
 알림 관련 공통 헬퍼 함수 모음.
-- 유저 등록 시 기본 알림 설정 생성
-- 주문·매장 이벤트 발생 시 알림 로그 생성
+외부에서 import해서 사용하는 함수:
+  - create_default_notification_settings(user)  : 회원가입 시 호출
+  - ensure_notification_settings(user)          : 설정 누락 보완 (GET settings에서 호출)
+  - notify_order_received(order)                : 주문 생성 시 (N01 → 점주)
+  - notify_order_completed(order)               : 주문 완료 시 (N02 → 소비자)
+  - notify_order_cancelled(order)               : 주문 취소 시 (N03 → 소비자)
 """
+from notification.models.choices import NOTIFICATION_TYPE_CHOICE
 from notification.models.notification import Notification
 from notification.models.notification_log import NotificationLog
-from notification.models.choices import NOTIFICATION_TYPE_CHOICE
 
 
-# ── 기본 알림 설정 생성 ──────────────────────────────────────────────────────
+# ── 알림 설정 초기화 ──────────────────────────────────────────────────────────
 
 def create_default_notification_settings(user):
     """
-    회원가입 시 모든 알림 타입에 대해 기본 설정 행 생성 (is_active=True)
-    RegisterView에서 user.save() 이후 호출
+    회원가입 시 모든 알림 타입 기본 설정 행 일괄 생성 (is_active=True).
+    user/views.py RegisterView에서 user.save() 직후 호출.
     """
-    Notification.objects.bulk_create([
-        Notification(user_id=user, notification_type=code, is_active=True)
-        for code, _ in NOTIFICATION_TYPE_CHOICE
-    ], ignore_conflicts=True)
+    Notification.objects.bulk_create(
+        [
+            Notification(user_id=user, notification_type=code, is_active=True)
+            for code, _ in NOTIFICATION_TYPE_CHOICE
+        ],
+        ignore_conflicts=True,
+    )
 
 
-# ── 알림 로그 생성 ───────────────────────────────────────────────────────────
+def ensure_notification_settings(user):
+    """
+    유저의 알림 설정 행 중 누락된 타입만 추가 생성.
+    구버전 가입자나 신규 타입 추가 시 안전망으로 사용.
+    NotificationSettingsView.get()에서 호출.
+    """
+    existing = set(
+        Notification.objects.filter(user_id=user)
+        .values_list("notification_type", flat=True)
+    )
+    missing = {code for code, _ in NOTIFICATION_TYPE_CHOICE} - existing
+    if missing:
+        Notification.objects.bulk_create(
+            [
+                Notification(user_id=user, notification_type=t, is_active=True)
+                for t in missing
+            ],
+            ignore_conflicts=True,
+        )
+
+
+# ── 내부 헬퍼 ─────────────────────────────────────────────────────────────────
 
 def _get_or_create_pref(user, notification_type):
-    """
-    유저의 특정 알림 타입 설정 행을 조회하거나 없으면 생성
-    - 설정 행이 없는 유저(구버전 가입자 등)에 대한 안전망
-    """
+    """수신자의 알림 타입 설정 행 조회. 없으면 기본값(is_active=True)으로 생성."""
     pref, _ = Notification.objects.get_or_create(
         user_id=user,
         notification_type=notification_type,
@@ -38,25 +63,14 @@ def _get_or_create_pref(user, notification_type):
     return pref
 
 
-def create_notification_log(receiver, notification_type, target_id=None, target_type=None):
+def _create_log(receiver, notification_type, target_id=None, target_type=None):
     """
-    알림 로그를 생성하는 공통 함수.
-
-    Args:
-        receiver          : 알림 수신 User 객체
-        notification_type : 'N01' ~ 'N04'
-        target_id         : 알림 대상 PK (주문번호, 매장ID 등)
-        target_type       : 'ORDER' | 'STORE' | 'PRODUCT'
-
-    Returns:
-        NotificationLog 객체 또는 None (알림이 꺼져있으면 생성 안 함)
+    알림 로그 생성 내부 함수.
+    수신자의 해당 타입 알림이 OFF면 생성하지 않고 None 반환.
     """
     pref = _get_or_create_pref(receiver, notification_type)
-
-    # 알림 수신 OFF 상태면 로그 생성 안 함
     if not pref.is_active:
         return None
-
     return NotificationLog.objects.create(
         notification_id=pref,
         user_id=receiver,
@@ -65,17 +79,18 @@ def create_notification_log(receiver, notification_type, target_id=None, target_
     )
 
 
-# ── 주문 관련 알림 헬퍼 ──────────────────────────────────────────────────────
+# ── 주문 알림 퍼블릭 헬퍼 ────────────────────────────────────────────────────
 
 def notify_order_received(order):
     """
-    N01: 주문 접수 → 점주에게 알림
-    주문 생성(S01) 시 호출
-    Store.user_id 가 점주 FK
+    N01: 주문 접수 → 점주에게 알림.
+    order.store_id_id 로 Store를 select_related 조회해 추가 쿼리를 최소화.
     """
-    store_owner = order.store_id.user_id  # Store.user_id → 점주 User
-    create_notification_log(
-        receiver=store_owner,
+    from store.models.store import Store  # 순환 import 방지를 위해 지연 import
+
+    store = Store.objects.select_related("user_id").get(pk=order.store_id_id)
+    _create_log(
+        receiver=store.user_id,
         notification_type="N01",
         target_id=order.order_id,
         target_type="ORDER",
@@ -84,10 +99,10 @@ def notify_order_received(order):
 
 def notify_order_completed(order):
     """
-    N02: 주문 처리 완료 → 소비자에게 알림
-    주문 상태가 S03으로 변경 시 호출 (추후 점주 앱 상태변경 API에서 사용)
+    N02: 주문 처리 완료 → 소비자에게 알림.
+    점주 앱 주문 상태 변경(S03) API 구현 시 해당 뷰에서 호출.
     """
-    create_notification_log(
+    _create_log(
         receiver=order.user_id,
         notification_type="N02",
         target_id=order.order_id,
@@ -97,10 +112,10 @@ def notify_order_completed(order):
 
 def notify_order_cancelled(order):
     """
-    N03: 주문 취소 → 소비자에게 알림
-    OrderCancelView에서 S04 처리 후 호출
+    N03: 주문 취소 → 소비자에게 알림.
+    order/views.py OrderCancelView에서 S04 처리 완료 후 호출.
     """
-    create_notification_log(
+    _create_log(
         receiver=order.user_id,
         notification_type="N03",
         target_id=order.order_id,

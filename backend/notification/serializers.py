@@ -1,11 +1,14 @@
 from rest_framework import serializers
 
+from notification.models.choices import NOTIFICATION_TYPE_CHOICE
 from notification.models.notification import Notification
 from notification.models.notification_log import NotificationLog
 
 
+# ── 알림 설정 조회 ────────────────────────────────────────────────────────────
+
 class NotificationSettingSerializer(serializers.ModelSerializer):
-    """알림 설정 조회용 (GET /notifications/settings/)"""
+    """GET /notifications/settings/"""
 
     class Meta:
         model = Notification
@@ -13,32 +16,26 @@ class NotificationSettingSerializer(serializers.ModelSerializer):
         read_only_fields = ["notification_id", "notification_type"]
 
 
+# ── 알림 설정 변경 ────────────────────────────────────────────────────────────
+
+class NotificationSettingItemSerializer(serializers.Serializer):
+    """settings 배열의 각 항목 유효성 검사"""
+    VALID_TYPES = {code for code, _ in NOTIFICATION_TYPE_CHOICE}
+
+    notification_type = serializers.ChoiceField(choices=NOTIFICATION_TYPE_CHOICE)
+    is_active = serializers.BooleanField()
+
+
 class NotificationSettingUpdateSerializer(serializers.Serializer):
-    """알림 설정 변경용 (PATCH /notifications/settings/)"""
+    """PATCH /notifications/settings/"""
+    settings = NotificationSettingItemSerializer(many=True, allow_empty=False)
 
-    settings = serializers.ListField(
-        child=serializers.DictField(), allow_empty=False
-    )
 
-    def validate_settings(self, value):
-        valid_types = {"N01", "N02", "N03", "N04"}
-        for item in value:
-            if "notification_type" not in item or "is_active" not in item:
-                raise serializers.ValidationError(
-                    "각 항목에 notification_type 과 is_active 가 필요합니다."
-                )
-            if item["notification_type"] not in valid_types:
-                raise serializers.ValidationError(
-                    f"유효하지 않은 알림 타입입니다: {item['notification_type']}"
-                )
-            if not isinstance(item["is_active"], bool):
-                raise serializers.ValidationError("is_active 는 boolean 이어야 합니다.")
-        return value
-
+# ── 알림 로그 조회 ────────────────────────────────────────────────────────────
 
 class NotificationLogSerializer(serializers.ModelSerializer):
-    """알림 로그 목록 조회용 (GET /notifications/)"""
-
+    """GET /notifications/"""
+    # notification_id FK에서 타입 코드만 꺼내서 노출
     notification_type = serializers.CharField(
         source="notification_id.notification_type"
     )
