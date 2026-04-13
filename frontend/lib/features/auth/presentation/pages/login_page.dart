@@ -191,7 +191,15 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
+<<<<<<< HEAD
                   onPressed: _isLoading ? null : _handleLogin,
+=======
+                  onPressed: () {
+                    // TODO: 백엔드 연동 후 실제 로그인 로직 구현
+                    // 현재는 임시로 바로 홈 화면 이동
+                    context.go('/owner-dashboard');
+                  },
+>>>>>>> fe/owner/home
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4FA75A),
                     foregroundColor: Colors.white,
