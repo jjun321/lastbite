@@ -1,6 +1,6 @@
 import uuid
 import os
-
+import math
 from django.conf import settings
 from django.db import transaction
 from rest_framework import status
@@ -14,10 +14,13 @@ from store.models.store import Store
 from post.models.post import Post
 from post.serializers import PostResponseSerializer
 
+from store.utils import haversine_km
+
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
 MAX_PAGE_SIZE = 50
-
+DEFAULT_RADIUS_KM = 3
+MAX_RADIUS_KM = 10
 
 def get_post_or_404(post_id):
     # 삭제되지 않은 제보 단건 조회 헬퍼
@@ -57,26 +60,68 @@ class PostListView(APIView):
 
     def get(self, request):
         try:
+            lat = float(request.query_params['lat']) if 'lat' in request.query_params else None
+            long = float(request.query_params['long']) if 'long' in request.query_params else None
+        except ValueError:
+            return error_response(message= "lat/long 값이 올바르지 않습니다.")
+
+        try:
+            radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
+        except ValueError:
+            return error_response(message="radius 값이 올바르지 않습니다.")
+
+        if not (1 <= radius <= MAX_RADIUS_KM):
+            return error_response(message="반경 값은 1~10km 사이여야 합니다.")
+        try:
             page = max(0, int(request.query_params.get('page', 0)))
             size = min(int(request.query_params.get('size', 20)), MAX_PAGE_SIZE)
         except ValueError:
             return error_response(message="page/size 값이 올바르지 않습니다.")
+        try:
+            store_id = int(request.query_params.get('store_id')) if 'store_id' in request.query_params else None
+        except ValueError:
+            return error_response(message="store_id 값이 올바르지 않습니다.")
+
 
         qs = Post.objects.filter(is_deleted=False).select_related(
             'user_id', 'img_id', 'store_id'
         )
+        if store_id is not None:
+            qs = qs.filter(store_id=store_id)
 
-        # 매장 필터
-        store_id = request.query_params.get('store_id')
-        if store_id:
-            try:
-                qs = qs.filter(store_id=int(store_id))
-            except ValueError:
-                return error_response(message="store_id 값이 올바르지 않습니다.")
+        if lat is not None and long is not None:
+            # 1차: 바운딩 박스로 DB 범위 축소
+            lat_delta = radius / 111.0
+            cos_lat = math.cos(math.radians(lat)) or 1
+            lon_delta = radius / (111.0 * cos_lat)
 
-        total = qs.count()
-        paged = qs[page * size:(page + 1) * size]
-        serializer = PostResponseSerializer(paged, many=True)
+            qs = qs.filter(
+                post_lat__gte=lat - lat_delta,
+                post_lat__lte=lat + lat_delta,
+                post_long__gte=long - lon_delta,
+                post_long__lte=long + lon_delta,
+            )
+
+            # 2차: Haversine 정밀 필터 + 거리순 정렬
+            with_dist = []
+            for post in qs:
+                if post.post_lat is None or post.post_long is None:
+                    continue
+                dist = haversine_km(lat, long, float(post.post_lat), float(post.post_long))
+                if dist <= radius:
+                    with_dist.append((dist, post))
+            with_dist.sort(key=lambda x: x[0])
+
+            total = len(with_dist)
+            paged = [s for _, s in with_dist[page * size:(page + 1) * size]]
+            serializer = PostResponseSerializer(paged, many=True, context={'ref_lat': lat, 'ref_long': long})
+
+        else:
+            # 좌표 없으면 전체 조회
+            total = qs.count()
+            paged_qs = qs.order_by('-reg_dt')[page * size:(page + 1) * size]
+            serializer = PostResponseSerializer(paged_qs, many=True, context={'ref_lat': None, 'ref_long': None})
+
         return success_response(data={
             'total': total,
             'page': page,
