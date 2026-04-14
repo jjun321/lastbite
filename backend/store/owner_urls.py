@@ -3,7 +3,6 @@
 from django.urls import path
 from .owner_views import (
     OwnerStoreView,
-    OwnerStoreMeView,
     OwnerStoreManageView,
     OwnerOffDateView,
     OwnerOffDateDeleteView,
@@ -17,7 +16,6 @@ from .owner_views import (
 
 urlpatterns = [
     path('', OwnerStoreView.as_view(), name='owner-store-create'),
-    path('me/', OwnerStoreMeView.as_view(), name='owner-store-me'),
     path('<int:store_id>/', OwnerStoreManageView.as_view(), name='owner-store-manage'),
     path('<int:store_id>/off-dates/', OwnerOffDateView.as_view(), name='owner-off-date'),
     path('<int:store_id>/off-dates/<int:date_id>/', OwnerOffDateDeleteView.as_view(), name='owner-off-date-delete'),

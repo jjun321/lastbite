@@ -14,7 +14,6 @@ class Store(models.Model):
     )
     store_name = models.CharField(db_comment="매장 이름", db_column="store_name", max_length=20)
     store_address = models.CharField(db_comment="매장 주소", db_column="store_address", max_length=100)
-    store_address_detail = models.CharField(db_comment="매장 상세주소", db_column="store_address_detail", max_length=100, null=True, blank=True)
     store_desc = models.TextField(db_comment="매장 소개", db_column="store_desc", null=True, blank=True)
     is_closed = models.BooleanField(db_comment="매장 마감 여부", db_column="is_closed", default=False)
     is_deleted = models.BooleanField(db_comment='삭제 여부', db_column='is_deleted', default=False)

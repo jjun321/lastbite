@@ -1,3 +1,4 @@
+from django.utils.dateparse import parse_date
 from rest_framework import serializers
 from store.models.store import Store
 from store.models.store_working_time import StoreWorkingTime
@@ -109,22 +110,18 @@ class StoreWorkingTimeSerializer(serializers.ModelSerializer):
 
 # 영업일과 함께 영업 시간을 설정하는 방식으로 되어있음
 # 따라서 요청에서 영업일과 영업시간을 조합해야함
-# 휴무일을
-
 class OwnerStoreCreateSerializer(serializers.ModelSerializer):
     # POST /owner/stores/ 가게 최초 등록
-    """
-    working_times = serializers.ListField(
-        child=serializers.DictField(), write_only=True, required=False
-    )
-    """
+    working_times = serializers.DictField(write_only=True, required=False)
+
+
     class Meta:
         model = Store
         fields = [
-            'store_name', 'store_address', 'store_address_detail',
+            'store_name', 'store_address',
             'store_desc', 'store_img_id',
             'store_lat', 'store_long',
-            'working_times',
+            'working_times'
         ]
 
     def validate_store_name(self, value):
@@ -137,70 +134,66 @@ class OwnerStoreCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("가게 주소를 입력해주세요.")
         return value.strip()
 
-    def validate_working_times(self, value):
-        valid_days = {f'D{i:02d}' for i in range(1, 8)}
-        for wt in value:
-            if wt.get('working_day') not in valid_days:
-                raise serializers.ValidationError(
-                    f"working_day는 D01~D07 중 하나여야 합니다. (받은 값: {wt.get('working_day')})"
-                )
-            for tf in ('start_time', 'end_time'):
-                try:
-                    h, m = wt[tf].split(':')
-                    assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
-                except Exception:
-                    raise serializers.ValidationError(f"{tf}의 형식이 올바르지 않습니다. (HH:MM)")
-        return value
-
-
     def create(self, validated_data):
         working_times = validated_data.pop('working_times', [])
         store = Store.objects.create(**validated_data)
-        for wt in working_times:
-            StoreWorkingTime.objects.create(
+        working_times = [
+            StoreWorkingTime(
                 store_id=store,
-                working_day=wt['working_day'],
-                start_time=wt['start_time'],
-                end_time=wt['end_time'],
-            )
+                working_day=f'D{i:02d}',
+                start_time=working_times.get('start_time'),
+                end_time=working_times.get('end_time')
+            ) for i in range(1, 8)  # 월(D01) ~ 일(D07)
+        ]
+        StoreWorkingTime.objects.bulk_create(working_times)
+
         return store
 
 
 class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
     #PATCH /owner/stores/{store_id}/ 가게 정보 수정
-    # 운영시간: [{"working_day":"D01","start_time":"09:00","end_time":"22:00"}, ...]
-    working_times = serializers.ListField(
+    """
+    운영시간: {"start_time":"09:00","end_time":"22:00"}
+    휴무일:
+    [
+        {"off_dt": "2024-05-01", "off_desc": "근로자의 날"},
+        {"off_dt": "2024-05-05", "off_desc": "어린이날"}
+    ]
+    """
+    working_times = serializers.DictField(write_only=True, required=False)
+    off_dates = serializers.ListField(
         child=serializers.DictField(), write_only=True, required=False
     )
 
     class Meta:
         model = Store
         fields = [
-            'store_name', 'store_address', 'store_address_detail',
+            'store_name', 'store_address',
             'store_desc', 'store_img_id',
             'store_lat', 'store_long',
-            'working_times',
+            'working_times', 'off_dates'
         ]
         # 모두 선택적 수정 허용
         extra_kwargs = {f: {'required': False} for f in fields}
 
     def validate_working_times(self, value):
-        valid_days = {f'D{i:02d}' for i in range(1, 8)}
-        for wt in value:
-            if wt.get('working_day') not in valid_days:
-                raise serializers.ValidationError(
-                    f"working_day는 D01~D07 중 하나여야 합니다. (받은 값: {wt.get('working_day')})"
-                )
-            for tf in ('start_time', 'end_time'):
-                try:
-                    h, m = wt[tf].split(':')
-                    assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
-                except Exception:
-                    raise serializers.ValidationError(f"{tf}의 형식이 올바르지 않습니다. (HH:MM)")
+        try:
+            h, m = value['start_time'].split(':')
+            assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
+        except Exception:
+            raise serializers.ValidationError(f"{value}의 형식이 올바르지 않습니다. (HH:MM)")
+
+    def validate_off_dates(self, value):
+        from store.utils import get_today_kst
+        for od in value :
+            print(type(od['off_dt']))
+            if parse_date(od['off_dt']) < get_today_kst():
+                raise serializers.ValidationError("과거 날짜는 휴무일로 등록할 수 없습니다.")
         return value
 
     def update(self, instance, validated_data):
         working_times = validated_data.pop('working_times', None)
+        off_dates = validated_data.pop('off_dates', None)
 
         # Store 기본 필드 업데이트
         for attr, value in validated_data.items():
@@ -217,6 +210,14 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
                     start_time=wt['start_time'],
                     end_time=wt['end_time'],
                 )
+        if off_dates is not None :
+            for od in off_dates:
+                OffDate.objects.create(
+                    store_id=instance,
+                    user_id=instance.user_id,  # 점주 연결
+                    off_dt=od['off_dt'],
+                    off_desc=od['off_desc'],
+                )
         return instance
 
 
@@ -230,7 +231,7 @@ class OwnerStoreDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
         fields = [
-            'store_id', 'store_name', 'store_address', 'store_address_detail',
+            'store_id', 'store_name', 'store_address',
             'store_desc', 'store_img_id', 'store_img_url',
             'store_lat', 'store_long',
             'is_closed',

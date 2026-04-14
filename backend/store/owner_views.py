@@ -1,7 +1,8 @@
 """
 -가게 관리
   POST   /owner/stores/                  가게 최초 등록
-  GET    /owner/stores/me/               내 가게 정보 조회
+  GET    /owner/stores/                  내 모든 가게 정보 조회
+  GET    /owner/stores/<store_id>/       내 특정 가게 정보 조회
   PATCH  /owner/stores/<store_id>/       가게 정보 수정
   DELETE /owner/stores/<store_id>/       가게 삭제 (soft delete)
 
@@ -19,7 +20,7 @@
 
 from django.db import transaction
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework import status
 
@@ -34,7 +35,6 @@ from store.serializers import (
     OffDateCreateSerializer,
     StoreWorkingTimeSerializer,
 )
-
 
 #  공통 헬퍼
 def get_owner_store(user, store_id):
@@ -59,18 +59,26 @@ def check_owner_type(user):
 class OwnerStoreView(APIView):
     """
     POST /owner/stores/   — 가게 최초 등록
-    GET  /owner/stores/me/ 는 별도 뷰(OwnerStoreMeView) 사용
+    GET  /owner/stores/   — 내 모든 가게 목록 조회
     """
     permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        error = check_owner_type(request.user)
+        if error: return error
+
+        # 내가 가진 삭제되지 않은 모든 가게 조회
+        stores = Store.objects.prefetch_related(
+            'storeworkingtime_set', 'offdate_set'
+        ).filter(user_id=request.user, is_deleted=False).order_by('-reg_dt')
+
+        serializer = OwnerStoreDetailSerializer(stores, many=True)
+        return success_response(data=serializer.data)
 
     def post(self, request):
         error = check_owner_type(request.user)
         if error:
             return error
-
-        # 이미 가게를 보유한 경우 중복 등록 차단
-        if Store.objects.filter(user_id=request.user, is_deleted=False).exists():
-            return error_response("이미 등록된 가게가 있습니다.", status_code=status.HTTP_400_BAD_REQUEST)
 
         serializer = OwnerStoreCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -88,34 +96,26 @@ class OwnerStoreView(APIView):
             status_code=status.HTTP_201_CREATED,
         )
 
-
-class OwnerStoreMeView(APIView):
-    """GET /owner/stores/me/ — 내 가게 정보 조회"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        error = check_owner_type(request.user)
-        if error:
-            return error
-
-        try:
-            store = Store.objects.prefetch_related(
-                'storeworkingtime_set', 'offdate_set'
-            ).get(user_id=request.user, is_deleted=False)
-        except Store.DoesNotExist:
-            return error_response("등록된 가게가 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
-
-        serializer = OwnerStoreDetailSerializer(store)
-        return success_response(data=serializer.data)
-
-
 #  가게 수정 / 삭제
 class OwnerStoreManageView(APIView):
     """
+    GET    /owner/stores/<store_id>/ — 특정 가게 정보 조회
     PATCH  /owner/stores/<store_id>/ — 가게 정보 수정
     DELETE /owner/stores/<store_id>/ — 가게 삭제(soft)
     """
     permission_classes = [IsAuthenticated]
+    def get(self, request, store_id):
+        error = check_owner_type(request.user)
+        if error:
+            return error
+
+        store = get_owner_store(request.user, store_id)
+        if store is None:
+            return error_response("가게를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
+
+
+        serializer = OwnerStoreDetailSerializer(store)
+        return success_response(data=serializer.data)
 
     def patch(self, request, store_id):
         error = check_owner_type(request.user)
