@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from store.models.store import Store
 from store.models.store_working_time import StoreWorkingTime
+from store.models.off_date import OffDate
 from store.utils import haversine_km, is_off_today, get_today_open_close
 from product.models.product import Product
 
@@ -103,4 +104,181 @@ class StoreWorkingTimeSerializer(serializers.ModelSerializer):
     def get_close_time(self, obj):
         return obj.end_time.strftime('%H:%M')
 
+
+# ------- 점주 전용 시리얼라이저 --------
+
+# 영업일과 함께 영업 시간을 설정하는 방식으로 되어있음
+# 따라서 요청에서 영업일과 영업시간을 조합해야함
+# 휴무일을
+
+class OwnerStoreCreateSerializer(serializers.ModelSerializer):
+    # POST /owner/stores/ 가게 최초 등록
+    """
+    working_times = serializers.ListField(
+        child=serializers.DictField(), write_only=True, required=False
+    )
+    """
+    class Meta:
+        model = Store
+        fields = [
+            'store_name', 'store_address', 'store_address_detail',
+            'store_desc', 'store_img_id',
+            'store_lat', 'store_long',
+            'working_times',
+        ]
+
+    def validate_store_name(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("가게 이름을 입력해주세요.")
+        return value.strip()
+
+    def validate_store_address(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("가게 주소를 입력해주세요.")
+        return value.strip()
+
+    def validate_working_times(self, value):
+        valid_days = {f'D{i:02d}' for i in range(1, 8)}
+        for wt in value:
+            if wt.get('working_day') not in valid_days:
+                raise serializers.ValidationError(
+                    f"working_day는 D01~D07 중 하나여야 합니다. (받은 값: {wt.get('working_day')})"
+                )
+            for tf in ('start_time', 'end_time'):
+                try:
+                    h, m = wt[tf].split(':')
+                    assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
+                except Exception:
+                    raise serializers.ValidationError(f"{tf}의 형식이 올바르지 않습니다. (HH:MM)")
+        return value
+
+
+    def create(self, validated_data):
+        working_times = validated_data.pop('working_times', [])
+        store = Store.objects.create(**validated_data)
+        for wt in working_times:
+            StoreWorkingTime.objects.create(
+                store_id=store,
+                working_day=wt['working_day'],
+                start_time=wt['start_time'],
+                end_time=wt['end_time'],
+            )
+        return store
+
+
+class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
+    #PATCH /owner/stores/{store_id}/ 가게 정보 수정
+    # 운영시간: [{"working_day":"D01","start_time":"09:00","end_time":"22:00"}, ...]
+    working_times = serializers.ListField(
+        child=serializers.DictField(), write_only=True, required=False
+    )
+
+    class Meta:
+        model = Store
+        fields = [
+            'store_name', 'store_address', 'store_address_detail',
+            'store_desc', 'store_img_id',
+            'store_lat', 'store_long',
+            'working_times',
+        ]
+        # 모두 선택적 수정 허용
+        extra_kwargs = {f: {'required': False} for f in fields}
+
+    def validate_working_times(self, value):
+        valid_days = {f'D{i:02d}' for i in range(1, 8)}
+        for wt in value:
+            if wt.get('working_day') not in valid_days:
+                raise serializers.ValidationError(
+                    f"working_day는 D01~D07 중 하나여야 합니다. (받은 값: {wt.get('working_day')})"
+                )
+            for tf in ('start_time', 'end_time'):
+                try:
+                    h, m = wt[tf].split(':')
+                    assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
+                except Exception:
+                    raise serializers.ValidationError(f"{tf}의 형식이 올바르지 않습니다. (HH:MM)")
+        return value
+
+    def update(self, instance, validated_data):
+        working_times = validated_data.pop('working_times', None)
+
+        # Store 기본 필드 업데이트
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # 운영시간 전달 시 전체 교체(upsert)
+        if working_times is not None:
+            instance.storeworkingtime_set.all().delete()
+            for wt in working_times:
+                StoreWorkingTime.objects.create(
+                    store_id=instance,
+                    working_day=wt['working_day'],
+                    start_time=wt['start_time'],
+                    end_time=wt['end_time'],
+                )
+        return instance
+
+
+class OwnerStoreDetailSerializer(serializers.ModelSerializer):
+    #GET /owner/stores/me/ 점주 본인 가게 정보 조회
+    store_id = serializers.IntegerField(source='pk', read_only=True)
+    store_img_url = serializers.SerializerMethodField()
+    working_times = serializers.SerializerMethodField()
+    off_dates = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Store
+        fields = [
+            'store_id', 'store_name', 'store_address', 'store_address_detail',
+            'store_desc', 'store_img_id', 'store_img_url',
+            'store_lat', 'store_long',
+            'is_closed',
+            'working_times', 'off_dates',
+            'reg_dt',
+        ]
+
+    def get_store_img_url(self, obj):
+        if obj.store_img_id:
+            return obj.store_img_id.img_url
+        return None
+
+    def get_working_times(self, obj):
+        wts = obj.storeworkingtime_set.all().order_by('working_day')
+        return [
+            {
+                'working_time_id': wt.working_time_id,
+                'working_day': wt.working_day,
+                'start_time': wt.start_time.strftime('%H:%M'),
+                'end_time': wt.end_time.strftime('%H:%M'),
+            }
+            for wt in wts
+        ]
+
+    def get_off_dates(self, obj):
+        from store.utils import get_today_kst
+        today = get_today_kst()
+        offs = obj.offdate_set.filter(off_dt__gte=today).order_by('off_dt')
+        return [
+            {
+                'closed_date_id': od.closed_date_id,
+                'off_dt': od.off_dt.strftime('%Y-%m-%d'),
+                'off_desc': od.off_desc,
+            }
+            for od in offs
+        ]
+
+
+class OffDateCreateSerializer(serializers.ModelSerializer):
+    #POST /owner/stores/{store_id}/off-dates/ 휴무일 등록
+
+    class Meta:
+        model = OffDate
+        fields = ['off_dt', 'off_desc']
+
+    def validate_off_dt(self, value):
+        from store.utils import get_today_kst
+        if value < get_today_kst():
+            raise serializers.ValidationError("과거 날짜는 휴무일로 등록할 수 없습니다.")
+        return value
 
