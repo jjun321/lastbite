@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/data/store_model.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
 import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
+import 'package:frontend/features/consumer/mypage/data/datasources/favorite_api.dart';
 
 class FavoritePage extends StatefulWidget {
   const FavoritePage({super.key});
@@ -12,6 +13,9 @@ class FavoritePage extends StatefulWidget {
 
 class _FavoritePageState extends State<FavoritePage> {
   List<StoreModel> _favoriteStores = [];
+  bool _isLoading = true;
+
+  final FavoriteRemoteDataSource _api = FavoriteRemoteDataSource();
 
   @override
   void initState() {
@@ -19,23 +23,14 @@ class _FavoritePageState extends State<FavoritePage> {
     _loadFavorites();
   }
 
-  void _loadFavorites() {
-    setState(() {
-      _favoriteStores = dummyStores.where((store) => store.isFavorite).toList();
-    });
-  }
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
 
-  void _toggleFavorite(StoreModel store) {
+    final stores = await _api.getFavorites();
+
     setState(() {
-      // dummyStores 상태 업데이트
-      final index = dummyStores.indexWhere((s) => s.name == store.name);
-      if (index != -1) {
-        dummyStores[index] = dummyStores[index].copyWith(
-          isFavorite: !store.isFavorite,
-        );
-      }
-      // 리스트 다시 불러오기
-      _loadFavorites();
+      _favoriteStores = stores;
+      _isLoading = false;
     });
   }
 
@@ -57,7 +52,9 @@ class _FavoritePageState extends State<FavoritePage> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Color(0xFF333333)),
       ),
-      body: _favoriteStores.isEmpty
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _favoriteStores.isEmpty
           ? const Center(
               child: Text(
                 '찜한 가게가 없습니다.',
@@ -75,10 +72,11 @@ class _FavoritePageState extends State<FavoritePage> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ShopPage()),
-                    );
+                      MaterialPageRoute(
+                        builder: (context) => ShopPage(store: store),
+                      ),
+                    ).then((_) => _loadFavorites());
                   },
-                  onFavoriteTap: () => _toggleFavorite(store),
                 );
               },
             ),

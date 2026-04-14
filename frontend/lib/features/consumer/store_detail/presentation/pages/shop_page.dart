@@ -1,14 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/data/mock_data.dart'; // 데이터 파일 임포트
+import 'package:frontend/data/mock_data.dart';
+import 'package:frontend/data/store_model.dart'; // 데이터 파일 임포트
 import 'package:frontend/features/consumer/order/presentation/pages/order_page.dart';
+import 'package:frontend/features/consumer/mypage/data/datasources/favorite_api.dart';
 
 //(소비자) 가게 화면 페이지
 
-class ShopPage extends StatelessWidget {
-  const ShopPage({Key? key}) : super(key: key);
+class ShopPage extends StatefulWidget {
+  final StoreModel? store;
+
+  const ShopPage({super.key, this.store});
+
+  @override
+  State<ShopPage> createState() => _ShopPageState();
+}
+
+class _ShopPageState extends State<ShopPage> {
+  late bool _isFavorite;
+  bool _isTogglingFavorite = false;
+
+  final FavoriteRemoteDataSource _favoriteApi = FavoriteRemoteDataSource();
+
+  @override
+  void initState() {
+    super.initState();
+    _isFavorite = widget.store?.isFavorite ?? false;
+  }
+
+  /// 찜 토글 (백엔드 연동)
+  Future<void> _toggleFavorite() async {
+    if (_isTogglingFavorite) return;
+
+    final storeId = widget.store?.id;
+    if (storeId == null) return;
+
+    setState(() => _isTogglingFavorite = true);
+
+    final newState = !_isFavorite;
+
+    // UI 업데이트
+    setState(() => _isFavorite = newState);
+
+    bool success;
+    if (newState) {
+      success = await _favoriteApi.addFavorite(storeId);
+    } else {
+      success = await _favoriteApi.removeFavorite(storeId);
+    }
+
+    if (!success) {
+      // 실패 시 원상복구
+      setState(() => _isFavorite = !newState);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('즐겨찾기 상태 변경에 실패했습니다.')));
+      }
+    }
+
+    if (mounted) setState(() => _isTogglingFavorite = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    // store가 없으면 mock 데이터 이름/주소 사용
+    final storeName = widget.store?.name ?? myStore.name;
+    final storeDescription = myStore.description;
+    final storeAddress = myStore.address;
+    final hasStore = widget.store != null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -37,7 +97,7 @@ class ShopPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   Text(
-                    myStore.name,
+                    storeName,
                     style: const TextStyle(
                       fontFamily: 'Sen',
                       fontSize: 17,
@@ -54,6 +114,7 @@ class ShopPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 가게 이미지
                     Container(
                       width: double.infinity,
                       height: 223,
@@ -64,27 +125,69 @@ class ShopPage extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFFC4C4C4),
                         borderRadius: BorderRadius.circular(10),
+                        image: widget.store?.imageUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(widget.store!.imageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
                     ),
+
+                    // 가게 이름 + 찜 하트
                     Padding(
-                      padding: const EdgeInsets.only(left: 24, top: 20),
-                      child: Text(
-                        myStore.name,
-                        style: const TextStyle(
-                          fontFamily: 'Sen',
-                          fontSize: 20,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF181C2E),
-                        ),
+                      padding: const EdgeInsets.only(
+                        left: 24,
+                        right: 24,
+                        top: 20,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              storeName,
+                              style: const TextStyle(
+                                fontFamily: 'Sen',
+                                fontSize: 20,
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF181C2E),
+                              ),
+                            ),
+                          ),
+                          // 찜 하트 버튼 (store가 있을 때만 활성화)
+                          GestureDetector(
+                            onTap: hasStore ? _toggleFavorite : null,
+                            child: _isTogglingFavorite
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFFEF5350),
+                                    ),
+                                  )
+                                : Icon(
+                                    _isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: _isFavorite
+                                        ? const Color(0xFFEF5350)
+                                        : const Color(0xFFBDBDBD),
+                                    size: 28,
+                                  ),
+                          ),
+                        ],
                       ),
                     ),
+
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
                       ),
                       child: Text(
-                        myStore.description,
+                        storeDescription,
                         style: const TextStyle(
                           fontFamily: 'Sen',
                           fontSize: 14,
@@ -104,7 +207,7 @@ class ShopPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 1. 주소 텍스트
+                          // 주소 텍스트
                           Text.rich(
                             TextSpan(
                               children: [
@@ -118,7 +221,7 @@ class ShopPage extends StatelessWidget {
                                   ),
                                 ),
                                 TextSpan(
-                                  text: myStore.address,
+                                  text: storeAddress,
                                   style: const TextStyle(
                                     fontFamily: 'Sen',
                                     fontSize: 14,

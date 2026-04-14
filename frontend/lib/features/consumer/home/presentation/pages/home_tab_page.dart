@@ -8,6 +8,8 @@ import 'package:frontend/features/consumer/home/presentation/widgets/store_card.
 import 'package:frontend/features/consumer/home/presentation/widgets/map_view.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/distance_filter_dialog.dart';
 
+import 'package:frontend/features/consumer/home/data/datasources/store_api.dart';
+
 /// 홈 탭의 실제 콘텐츠를 표시한다.
 /// 리스트/지도 토글, 위치 프리셋, 필터, 가게 카드 등을 포함.
 
@@ -34,25 +36,38 @@ class _HomeTabPageState extends State<HomeTabPage> {
   /// 위치 로딩 상태
   bool _isLoadingLocation = false;
 
+  /// 매장 데이터 로딩 상태
+  bool _isLoadingStores = true;
+
   /// 현재 선택된 거리 필터 (미터 단위, 0 = 필터 없음)
   int _filterDistance = 0;
+
+  final StoreRemoteDataSource _storeApi = StoreRemoteDataSource();
 
   @override
   void initState() {
     super.initState();
-    _stores = List.from(dummyStores);
-    // 앱 시작 시 자동으로 현재 위치 가져오기
-    // _getCurrentLocation();
+    _stores = [];
+    _loadStores();
   }
 
-  // 위치 서비스 관련 메서드
+  Future<void> _loadStores() async {
+    setState(() => _isLoadingStores = true);
 
-  /// 위치 권한을 확인하고 현재 위치를 가져온다
+    final fetchedStores = await _storeApi.getStores();
+
+    setState(() {
+      _stores = fetchedStores;
+      _isLoadingStores = false;
+    });
+  }
+
+  // 위치 권한을 확인하고 현재 위치를 가져오는 메서드
   Future<void> _getCurrentLocation() async {
     setState(() => _isLoadingLocation = true);
 
     try {
-      // 1) 위치 서비스 활성화 확인
+      // 위치 서비스 활성화 확인
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) {
@@ -62,7 +77,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
         return;
       }
 
-      // 2) 위치 권한 확인
+      // 위치 권한 확인
       LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
@@ -85,7 +100,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
         return;
       }
 
-      // 3) 현재 위치 가져오기
+      // 현재 위치 가져오기
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
@@ -119,26 +134,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
         duration: const Duration(seconds: 2),
       ),
     );
-  }
-
-  // 찜(Favorite) 토글
-  void _toggleFavorite(int index) {
-    setState(() {
-      final updatedStore = _stores[index].copyWith(
-        isFavorite: !_stores[index].isFavorite,
-      );
-      _stores[index] = updatedStore;
-
-      // 즐겨찾기 페이지 등 다른 곳에서도 반영되도록 dummyStores 수정
-      final dummyIndex = dummyStores.indexWhere(
-        (s) => s.name == updatedStore.name,
-      );
-      if (dummyIndex != -1) {
-        dummyStores[dummyIndex] = dummyStores[dummyIndex].copyWith(
-          isFavorite: updatedStore.isFavorite,
-        );
-      }
-    });
   }
 
   // 거리 필터 다이얼로그
@@ -205,6 +200,14 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
   /// 리스트 뷰 — 가게 카드 리스트
   Widget _buildListView() {
+    if (_isLoadingStores) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_stores.isEmpty) {
+      return const Center(child: Text("표시할 가게가 없습니다."));
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 4, bottom: 16),
       itemCount: _stores.length,
@@ -214,10 +217,11 @@ class _HomeTabPageState extends State<HomeTabPage> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ShopPage()),
-            );
+              MaterialPageRoute(
+                builder: (context) => ShopPage(store: _stores[index]),
+              ),
+            ).then((_) => _loadStores());
           },
-          onFavoriteTap: () => _toggleFavorite(index),
         );
       },
     );
@@ -225,6 +229,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
   /// 지도 뷰
   Widget _buildMapView() {
+    if (_isLoadingStores) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return MapView(
       stores: _stores,
       showAiRecommended: _showAiRecommended,

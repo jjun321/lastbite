@@ -2,6 +2,7 @@
 // 나중에 백엔드 API 연동 시 이 모델을 확장하거나 교체한다.
 
 class StoreModel {
+  final int id;
   final String name;
   final List<String> categories;
   final double rating;
@@ -13,6 +14,7 @@ class StoreModel {
   final double? longitude;
 
   const StoreModel({
+    required this.id,
     required this.name,
     required this.categories,
     required this.rating,
@@ -27,6 +29,7 @@ class StoreModel {
   /// isFavorite 값만 토글한 새 인스턴스를 반환
   StoreModel copyWith({bool? isFavorite}) {
     return StoreModel(
+      id: id,
       name: name,
       categories: categories,
       rating: rating,
@@ -43,6 +46,7 @@ class StoreModel {
 /// 테스트용 더미 데이터 (경희대 근처 좌표)
 List<StoreModel> dummyStores = [
   const StoreModel(
+    id: 1,
     name: '소금빵 가게',
     categories: ['소금빵', '휘낭시에', '베이글'],
     rating: 4.7,
@@ -52,6 +56,7 @@ List<StoreModel> dummyStores = [
     longitude: 127.0100,
   ),
   const StoreModel(
+    id: 2,
     name: '달콤 베이커리',
     categories: ['크로와상', '마카롱', '케이크'],
     rating: 4.5,
@@ -61,6 +66,7 @@ List<StoreModel> dummyStores = [
     longitude: 127.0070,
   ),
   const StoreModel(
+    id: 3,
     name: '행복한 빵집',
     categories: ['식빵', '바게트', '치아바타'],
     rating: 4.3,
@@ -71,6 +77,7 @@ List<StoreModel> dummyStores = [
     longitude: 127.0120,
   ),
   const StoreModel(
+    id: 4,
     name: '모닝글로리 베이커리',
     categories: ['스콘', '머핀', '타르트'],
     rating: 4.8,
@@ -80,6 +87,7 @@ List<StoreModel> dummyStores = [
     longitude: 127.0050,
   ),
   const StoreModel(
+    id: 5,
     name: '밀가루 공방',
     categories: ['호밀빵', '통밀빵', '잡곡빵'],
     rating: 4.1,

@@ -2,19 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:frontend/data/store_model.dart';
 
 /// 홈 화면 리스트 뷰에서 가게 하나를 표현하는 카드 위젯.
-/// 이미지, 이름, 카테고리 태그, 별점, 마감 시간, 찜 아이콘을 표시한다.
+/// 이미지, 이름, 카테고리 태그, 별점, 마감 시간을 표시한다.
 
 class StoreCard extends StatelessWidget {
   final StoreModel store;
   final VoidCallback? onTap;
-  final VoidCallback? onFavoriteTap;
 
-  const StoreCard({
-    super.key,
-    required this.store,
-    this.onTap,
-    this.onFavoriteTap,
-  });
+  const StoreCard({super.key, required this.store, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -70,36 +64,16 @@ class StoreCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// 가게 이름 + 찜 아이콘
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          store.name,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF222222),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: onFavoriteTap,
-                        child: Icon(
-                          store.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: store.isFavorite
-                              ? const Color(0xFFEF5350)
-                              : const Color(0xFFBDBDBD),
-                          size: 24,
-                        ),
-                      ),
-                    ],
+                  /// 가게 이름
+                  Text(
+                    store.name,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF222222),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 6),
 
                   /// 카테고리 태그
@@ -111,7 +85,6 @@ class StoreCard extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-
                   const SizedBox(height: 8),
 
                   /// 별점 + 마감 시간
