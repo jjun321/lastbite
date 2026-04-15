@@ -21,7 +21,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   late final List<Widget> _tabPages = [
     const HomeTabPage(),
     _buildPlaceholderPage('제보게시판', Icons.chat_bubble_outline),
-    const OrderHistoryScreen(),
+    const OrderHistoryPage(),
     const ConsumerMyPage(),
   ];
 

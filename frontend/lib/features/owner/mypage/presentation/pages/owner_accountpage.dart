@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/auth_service.dart';
 
-/// 사장님 계정 관리 페이지
-/// 프로필 사진 수정, 아이디/이메일/연락처 확인 및 수정 기능
+// 사장님 계정 관리 페이지 — 백엔드 연동
+// 프로필 사진 수정, 아이디/이메일/연락처 확인 및 수정 기능
 class OwnerAccountPage extends StatefulWidget {
   const OwnerAccountPage({super.key});
 
@@ -10,11 +11,57 @@ class OwnerAccountPage extends StatefulWidget {
 }
 
 class _OwnerAccountPageState extends State<OwnerAccountPage> {
-  // TODO: 백엔드 연동 후 실제 사용자 정보를 불러오도록 수정
-  final _nameController = TextEditingController(text: 'user_name');
-  final _emailController =
-      TextEditingController(text: 'user_email(00000@hansung.ac.kr)');
-  final _phoneController = TextEditingController(text: 'user_phone');
+  // 백엔드 연동 후 실제 사용자 정보를 불러오기
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final res = await AuthService.getMyProfile();
+    if (res['success'] == true && mounted) {
+      final data = res['data'] as Map<String, dynamic>;
+      setState(() {
+        _nameController.text = data['user_name'] ?? '';
+        _emailController.text = data['user_email'] ?? '';
+        _phoneController.text = data['user_phone'] ?? '';
+        _isLoading = false;
+      });
+    } else if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final res = await AuthService.updateMyProfile(
+        userName: _nameController.text.trim(),
+        userEmail: _emailController.text.trim(),
+        userPhone: _phoneController.text.trim(),
+      );
+      if (res['success'] == true) {
+        _showSnack('저장되었습니다.');
+      } else {
+        _showSnack(res['message'] ?? '저장에 실패했습니다.');
+      }
+    } catch (e) {
+      _showSnack('오류: $e');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _showSnack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   void dispose() {
@@ -31,10 +78,12 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── 상단 헤더 (뒤로가기 + 타이틀) ──
+            // 상단 헤더 (뒤로가기 + 타이틀)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Row(
                 children: [
                   GestureDetector(
@@ -53,14 +102,10 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                           ),
                         ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Image.asset(
-                          'assets/images/icon_back.png',
-                          width: 24,
-                          height: 24,
-                          color: const Color(0xFF333333),
-                        ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 18,
+                        color: Color(0xFF333333),
                       ),
                     ),
                   ),
@@ -76,8 +121,7 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                 ],
               ),
             ),
-
-            // ── 본문 영역 ──
+            // 본문 영역 — 로딩 여부와 무관하게 항상 텍스트 필드 렌더링
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -86,7 +130,7 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                   children: [
                     const SizedBox(height: 20),
 
-                    // ── 프로필 아바타 + 편집 아이콘 ──
+                    // 프로필 아바타 + 편집 아이콘
                     Center(
                       child: Stack(
                         clipBehavior: Clip.none,
@@ -100,7 +144,7 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                             right: 0,
                             child: GestureDetector(
                               onTap: () {
-                                // TODO: 프로필 사진 변경 기능 구현
+                                // TODO: 프로필 사진 변경 (POST /users/me/profile-image)
                               },
                               child: Container(
                                 width: 36,
@@ -109,12 +153,10 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                                   color: Color(0xFF4CAF50),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Image.asset(
-                                    'assets/images/icon_edit.png',
-                                    color: Colors.white,
-                                  ),
+                                child: const Icon(
+                                  Icons.edit,
+                                  color: Colors.white,
+                                  size: 18,
                                 ),
                               ),
                             ),
@@ -128,32 +170,51 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                     // ── 아이디 필드 ──
                     _buildLabel('아이디'),
                     const SizedBox(height: 8),
-                    _buildTextField(_nameController),
+                    _buildTextField(_nameController, hint: 'user_name'),
 
                     const SizedBox(height: 24),
 
                     // ── 이메일 필드 ──
                     _buildLabel('이메일'),
                     const SizedBox(height: 8),
-                    _buildTextField(_emailController),
+                    _buildTextField(
+                      _emailController,
+                      hint: 'user@email.com',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
 
                     const SizedBox(height: 24),
 
-                    // ── 연락처 필드 ──
+                    // 연락처 필드
                     _buildLabel('연락처'),
                     const SizedBox(height: 8),
-                    _buildTextField(_phoneController),
+                    _buildTextField(
+                      _phoneController,
+                      hint: '010-0000-0000',
+                      keyboardType: TextInputType.phone,
+                    ),
 
                     const SizedBox(height: 40),
 
-                    // ── 저장하기 버튼 ──
+                    // 데이터 로딩 중 표시
+                    if (_isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 16),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF4FA75A),
+                          ),
+                        ),
+                      ),
+
+                    // 저장하기 버튼
                     SizedBox(
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: 백엔드 저장 API 연동
-                        },
+                        onPressed: (_isSaving || _isLoading)
+                            ? null
+                            : _save, // 백엔드 저장 API 연동
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4FA75A),
                           foregroundColor: Colors.white,
@@ -162,13 +223,17 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                             borderRadius: BorderRadius.circular(28),
                           ),
                         ),
-                        child: const Text(
-                          '저장하기',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        child: _isSaving
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                '저장하기',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                       ),
                     ),
 
@@ -177,46 +242,44 @@ class _OwnerAccountPageState extends State<OwnerAccountPage> {
                 ),
               ),
             ),
-
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: Color(0xFF333333),
-      ),
-    );
-  }
+  Widget _buildLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: Color(0xFF333333),
+    ),
+  );
 
-  Widget _buildTextField(TextEditingController controller) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFF4CAF50)),
-        ),
+  Widget _buildTextField(
+    TextEditingController ctrl, {
+    String hint = '',
+    TextInputType? keyboardType,
+  }) => TextField(
+    controller: ctrl,
+    keyboardType: keyboardType,
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: UnderlineInputBorder(
+        borderSide: BorderSide(color: Colors.grey[300]!),
       ),
-      style: const TextStyle(
-        fontSize: 15,
-        color: Color(0xFF666666),
+      enabledBorder: UnderlineInputBorder(
+        borderSide: BorderSide(color: Colors.grey[300]!),
       ),
-    );
-  }
+      focusedBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: Color(0xFF4CAF50)),
+      ),
+    ),
+    style: const TextStyle(fontSize: 15, color: Color(0xFF444444)),
+  );
 }

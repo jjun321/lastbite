@@ -10,12 +10,13 @@ urlpatterns = [
     path("", home),
     path("admin/", admin.site.urls),
     path("auth/", include("user.urls")),
-    path("users/",  include((users_urlpatterns, "users"))),
+    path("users/", include((users_urlpatterns, "users"))),
     path("stores/", include("store.urls")),
     path("stores/", include("product.urls")),
     path("orders/", include("order.urls")),
     path("cart/", include("cart.urls")),
     path("posts/", include("post.urls")),
+    path("notifications/", include("notification.urls")),
 ]
 
 #개발환경에서 미디어 파일 제공을 위한 코드, 임시 사용 코드

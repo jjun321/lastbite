@@ -1,14 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/features/owner/mypage/presentation/pages/owner_accountpage.dart';
+import 'package:frontend/features/owner/store/presentation/pages/owner_store_edit_page.dart';
 
-class OwnerMyPage extends StatelessWidget {
+// 사장님 마이페이지
+class OwnerMyPage extends StatefulWidget {
   const OwnerMyPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: 백엔드 연동 후 실제 user_name을 받아오도록 수정
-    const String userName = 'User_name';
+  State<OwnerMyPage> createState() => _OwnerMyPageState();
+}
 
+class _OwnerMyPageState extends State<OwnerMyPage> {
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final res = await AuthService.getMyProfile();
+    if (res['success'] == true && mounted) {
+      final data = res['data'] as Map<String, dynamic>;
+      setState(() => _userName = data['user_name'] ?? '');
+    }
+  }
+
+  Future<void> _logout() async {
+    await AuthService.clearTokens();
+    if (mounted) context.go('/login');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: 백엔드 연동 후 실제 user_name을 받아옴
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -22,9 +50,9 @@ class OwnerMyPage extends StatelessWidget {
                 children: [
                   CircleAvatar(radius: 50, backgroundColor: Colors.grey[300]),
                   const SizedBox(width: 20),
-                  const Text(
-                    userName,
-                    style: TextStyle(
+                  Text(
+                    _userName.isEmpty ? 'User_name' : _userName,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF333333),
@@ -38,19 +66,19 @@ class OwnerMyPage extends StatelessWidget {
             // 첫 번째 카드 (계정 관리, 로그아웃)
             _buildMenuCard([
               _buildMenuItem(
-                iconPath: 'assets/images/icon_profile.png',
+                icon: Icons.person_outline_rounded,
+                iconColor: const Color(0xFF4FA75A),
                 title: '계정 관리',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const OwnerAccountPage()),
-                  );
-                },
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const OwnerAccountPage()),
+                ),
               ),
               const Divider(height: 1, color: Color(0xFFF1F1F1)),
               _buildMenuItem(
-                iconPath: 'assets/images/icon_logout.png',
+                icon: Icons.logout_rounded,
+                iconColor: const Color(0xFFE53935),
                 title: '로그아웃',
-                onTap: () {},
+                onTap: _logout,
               ),
             ]),
 
@@ -59,9 +87,12 @@ class OwnerMyPage extends StatelessWidget {
             // 두 번째 카드 (가게 정보 수정)
             _buildMenuCard([
               _buildMenuItem(
-                iconPath: 'assets/images/icon_mypage.png',
+                icon: Icons.storefront_outlined,
+                iconColor: const Color(0xFF4FA75A),
                 title: '가게 정보 수정',
-                onTap: () {},
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const OwnerStoreEditPage()),
+                ),
               ),
             ]),
 
@@ -72,62 +103,58 @@ class OwnerMyPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuCard(List<Widget> children) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(children: children),
-    );
-  }
+  Widget _buildMenuCard(List<Widget> children) => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(children: children),
+  );
 
   Widget _buildMenuItem({
-    required String iconPath,
+    required IconData icon,
+    required Color iconColor,
     required String title,
     required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFF1F1F1)),
-              ),
-              child: Image.asset(iconPath),
+  }) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(16),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF333333),
-                ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF333333),
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-          ],
-        ),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }

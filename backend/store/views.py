@@ -10,6 +10,8 @@ from store.models.store import Store
 from product.models.product import Product
 from store.serializers import StoreListSerializer, StoreDetailSerializer, StoreWorkingTimeSerializer
 from store.utils import haversine_km
+from store.models.favorite import Favorite
+from common.response import success_response, error_response, extract_first_error
 
 DEFAULT_RADIUS_KM = 3
 MAX_RADIUS_KM = 10
@@ -24,7 +26,9 @@ def api_response(success, message, data=None):
 
 
 class StoreListView(APIView):
-    #GET /stores/
+    """
+    GET /stores/
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -96,7 +100,9 @@ class StoreListView(APIView):
 
 
 class StoreDetailView(APIView):
-    #GET /stores/{store_id}/"""
+    """
+    GET /stores/{store_id}/
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, store_id):
@@ -112,7 +118,9 @@ class StoreDetailView(APIView):
 
 
 class StoreHoursView(APIView):
-    #GET /stores/{store_id}/hours/
+    """
+    GET /stores/{store_id}/hours/
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, store_id):
@@ -124,3 +132,54 @@ class StoreHoursView(APIView):
         hours = store.storeworkingtime_set.all().order_by('working_day')
         serializer = StoreWorkingTimeSerializer(hours, many=True)
         return Response(api_response(True, "성공", serializer.data), status=status.HTTP_200_OK)
+
+class StoreFavoriteView(APIView):
+    """
+    POST   /stores/{store_id}/favorite — 즐겨찾기 추가
+    DELETE /stores/{store_id}/favorite — 즐겨찾기 해제
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, store_id):
+        # 매장 존재 확인
+        try:
+            store = Store.objects.get(store_id=store_id, is_deleted=False)
+        except Store.DoesNotExist:
+            return error_response(
+                message="매장을 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        # 이미 즐겨찾기 중인지 확인하고 아니면 즐겨찾기 추가. 맞으면 삭제
+        favorite_qs = Favorite.objects.filter(user_id=request.user, store_id=store_id)
+        if favorite_qs.exists():
+            favorite_qs.delete()
+            return success_response(data={
+                "store_id": store_id,
+                "is_favorited": False,
+            })
+        else:
+            Favorite.objects.create(user_id=request.user, store_id=store)
+            return success_response(data={
+                "store_id": store.store_id,
+                "store_name": store.store_name,
+                "is_favorited": True,
+            }, status_code=status.HTTP_201_CREATED)
+
+    def delete(self, request, store_id):
+        try:
+            favorite = Favorite.objects.get(
+                user_id=request.user,
+                store_id=store_id,
+            )
+        except Favorite.DoesNotExist:
+            return error_response(
+                message="즐겨찾기하지 않은 매장입니다.",
+                code="FAV_002",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        favorite.delete()
+        return success_response(data={
+            "store_id":    store_id,
+            "is_favorited": False,
+        })

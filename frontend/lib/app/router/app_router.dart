@@ -3,9 +3,10 @@ import 'package:frontend/features/auth/presentation/pages/login_page.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 import 'package:frontend/features/auth/presentation/pages/welcome_page.dart';
 import 'package:frontend/features/consumer/home/presentation/pages/consumer_home_page.dart';
+import 'package:frontend/features/owner/dashboard/presentation/pages/owner_dashboard_page.dart';
+import 'package:frontend/features/owner/store/presentation/pages/owner_store_register_page.dart';
 
 /// 앱의 페이지 이동 규칙을 정의한다.
-///
 /// 사용자가 직접 작성할 순서:
 /// 1) go_router 패키지 설치
 /// 2) 각 페이지 import
@@ -24,6 +25,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/home',
       builder: (context, state) => const ConsumerHomePage(),
+    ),
+    GoRoute(
+      path: '/owner-dashboard',
+      builder: (context, state) => const OwnerDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/owner-store-register',
+      builder: (context, state) => const OwnerStoreRegisterPage(),
     ),
   ],
 );

@@ -17,9 +17,11 @@ from datetime import timedelta
 from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer
 from common.response import success_response, error_response, extract_first_error
 from image.models.image import Image
+from notification.utils import create_default_notification_settings
 from order.models.order import Order
+from store.models.favorite import Favorite
 from order.models.orderProdList import OrderProdList
-
+from store.serializers import StoreListSerializer
 
 # 응답 규격에 유저 객체 정보도 들어가기에 커스텀 뷰 구조 만듦
 
@@ -56,6 +58,8 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            # 회원가입 완료 시 알림 수신 설정 기본값 생성 (N01~N04 전체 is_active=True)
+            create_default_notification_settings(user)
             return Response(api_response(True, "성공", {
                 "user_id": user.user_id,
                 "user_name": user.user_name,
@@ -418,3 +422,28 @@ class UserSavingsView(APIView):
             "total_savings":    total_savings,
             "completed_orders": completed_count,
         }), status=status.HTTP_200_OK)
+
+class UserFavoriteListView(APIView):
+    """GET /users/me/favorites — 즐겨찾기 매장 목록 조회"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        favorites = (
+            Favorite.objects
+            .filter(user_id=request.user, store_id__is_deleted=False)
+            .select_related('store_id')
+            .prefetch_related(
+                'store_id__storeworkingtime_set',
+                'store_id__offdate_set',
+                'store_id__product_set',
+            )
+            .order_by('reg_dt')
+        )
+
+        stores = [fav.store_id for fav in favorites]
+        serializer = StoreListSerializer(stores, many=True)
+        return success_response(data={
+            "total":  len(stores),
+            "stores": serializer.data,
+        })
