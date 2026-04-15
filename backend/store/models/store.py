@@ -6,6 +6,7 @@ class Store(models.Model):
     user_id = models.ForeignKey(User,on_delete=models.CASCADE,db_comment="유저 ID", db_column='user_id')
     store_name = models.CharField(db_comment="매장 이름", db_column="store_name", max_length=20)
     store_address = models.CharField(db_comment="매장 주소", db_column="store_address", max_length=100)
+    store_desc = models.TextField(db_comment="매장 설명", db_column="store_desc", null=True)
     is_closed = models.BooleanField(db_comment="매장 마감 여부", db_column="is_closed", default=False )
     is_deleted = models.BooleanField(db_comment='삭제 여부', db_column='is_deleted', default=False )
     store_lat = models.FloatField(db_comment="매장 위도", db_column="store_lat", null=True)

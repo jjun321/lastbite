@@ -78,7 +78,7 @@ class StoreDetailSerializer(serializers.ModelSerializer):
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
-            'store_lat', 'store_long',
+            'store_desc','store_lat', 'store_long',
             'is_closed', 'is_off_today',
         ]
 
