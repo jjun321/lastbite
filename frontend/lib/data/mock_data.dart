@@ -2,6 +2,31 @@
 
 import '../data/models.dart';
 
+
+
+// 제보 게시판 더미 데이터 추가
+final List<CommunityReport> reportList = [
+  CommunityReport(
+    date: "2026.01.01.",
+    title: "할인",
+    storeName: "소금빵 가게",
+    content: "지금 소금빵 3,000원에 마감 할인 중이에요! 서두르세요.",
+  ),
+  CommunityReport(
+    date: "2026.01.02.",
+    title: "할인",
+    storeName: "한성 베이커리",
+    content: "오늘 크루아상은 품절이라고 합니다. 참고하세요!",
+  ),
+  CommunityReport(
+    date: "2026.01.03.",
+    title: "할인",
+    storeName: "도너츠 랜드",
+    content: "오늘 하루 1+1 이벤트 진행 중입니다.",
+  ),
+];
+
+
 // 1. 가게 정보
 final StoreInfo myStore = StoreInfo(
   name: "소금빵 가게",

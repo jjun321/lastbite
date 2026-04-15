@@ -1,5 +1,20 @@
 // 임시 데이터!! 데베 연결 후 삭제 예정
 
+
+class CommunityReport {
+  final String date;
+  final String title;
+  final String storeName;
+  final String content;
+
+  CommunityReport({
+    required this.date,
+    required this.title,
+    required this.storeName,
+    required this.content,
+  });
+}
+
 class StoreInfo {
   final String name;
   final String description;
