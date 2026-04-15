@@ -14,7 +14,7 @@ from store.models.favorite import Favorite
 from common.response import success_response, error_response, extract_first_error
 
 DEFAULT_RADIUS_KM = 3
-MAX_RADIUS_KM = 10
+MAX_RADIUS_KM = 3000
 MAX_PAGE_SIZE = 50
 
 
@@ -36,7 +36,7 @@ class StoreListView(APIView):
             lat = float(request.query_params['lat']) if 'lat' in request.query_params else None
             lon = float(request.query_params['lon']) if 'lon' in request.query_params else None
         except ValueError:
-            return Response(api_response(False, "lat/lon 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
+            return Response(api_response(False, "lat/long 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
 
         try:
             radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))

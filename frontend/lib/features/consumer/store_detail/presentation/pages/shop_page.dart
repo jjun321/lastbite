@@ -6,7 +6,7 @@ import 'package:frontend/features/consumer/mypage/data/datasources/favorite_api.
 
 class ShopPage extends StatefulWidget {
   final int storeId;
-  const ShopPage({Key? key, required this.storeId}) : super(key: key);
+  const ShopPage({super.key, required this.storeId});
 
   @override
   State<ShopPage> createState() => _ShopPageState();
