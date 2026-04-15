@@ -4,7 +4,7 @@ import math
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from store.models.store import Store
 from product.models.product import Product
@@ -14,7 +14,7 @@ from store.models.favorite import Favorite
 from common.response import success_response, error_response, extract_first_error
 
 DEFAULT_RADIUS_KM = 3
-MAX_RADIUS_KM = 10
+MAX_RADIUS_KM = 3000
 MAX_PAGE_SIZE = 50
 
 
@@ -36,7 +36,7 @@ class StoreListView(APIView):
             lat = float(request.query_params['lat']) if 'lat' in request.query_params else None
             lon = float(request.query_params['lon']) if 'lon' in request.query_params else None
         except ValueError:
-            return Response(api_response(False, "lat/lon 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
+            return Response(api_response(False, "lat/long 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
 
         try:
             radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
@@ -67,8 +67,8 @@ class StoreListView(APIView):
             qs = qs.filter(
                 store_lat__gte=lat - lat_delta,
                 store_lat__lte=lat + lat_delta,
-                store_lon__gte=lon - lon_delta,
-                store_lon__lte=lon + lon_delta,
+                store_long__gte=lon - lon_delta,
+                store_long__lte=lon + lon_delta,
             )
 
             # 2차: Haversine 정밀 필터 + 거리순 정렬
@@ -76,7 +76,7 @@ class StoreListView(APIView):
             for store in qs:
                 if store.store_lat is None or store.store_long is None:
                     continue
-                dist = haversine_km(lat, lon, float(store.store_lat), store.store_long)
+                dist = haversine_km(lat, lon, float(store.store_lat), float(store.store_long))
                 if dist <= radius:
                     with_dist.append((dist, store))
             with_dist.sort(key=lambda x: x[0])
@@ -149,21 +149,21 @@ class StoreFavoriteView(APIView):
                 message="매장을 찾을 수 없습니다.",
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-
-        # 이미 즐겨찾기 중인지 확인
-        if Favorite.objects.filter(user_id=request.user, store_id=store).exists():
-            return error_response(
-                message="이미 즐겨찾기한 매장입니다.",
-                code="FAV_001",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
-
-        Favorite.objects.create(user_id=request.user, store_id=store)
-        return success_response(data={
-            "store_id":    store.store_id,
-            "store_name":  store.store_name,
-            "is_favorited": True,
-        }, status_code=status.HTTP_201_CREATED)
+        # 이미 즐겨찾기 중인지 확인하고 아니면 즐겨찾기 추가. 맞으면 삭제
+        favorite_qs = Favorite.objects.filter(user_id=request.user, store_id=store_id)
+        if favorite_qs.exists():
+            favorite_qs.delete()
+            return success_response(data={
+                "store_id": store_id,
+                "is_favorited": False,
+            })
+        else:
+            Favorite.objects.create(user_id=request.user, store_id=store)
+            return success_response(data={
+                "store_id": store.store_id,
+                "store_name": store.store_name,
+                "is_favorited": True,
+            }, status_code=status.HTTP_201_CREATED)
 
     def delete(self, request, store_id):
         try:

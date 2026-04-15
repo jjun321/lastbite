@@ -31,7 +31,7 @@ class StoreListSerializer(serializers.ModelSerializer):
             return None
         if obj.store_lat is None or obj.store_long is None:
             return None
-        return round(haversine_km(ref_lat, ref_lon, float(obj.store_lat), obj.store_long), 2)
+        return round(haversine_km(ref_lat, ref_lon, float(obj.store_lat), float(obj.store_long)), 2)
 
     def get_today_open(self, obj):
         if is_off_today(obj):
@@ -78,7 +78,7 @@ class StoreDetailSerializer(serializers.ModelSerializer):
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
-            'store_lat', 'store_long',
+            'store_desc','store_lat', 'store_long',
             'is_closed', 'is_off_today',
         ]
 

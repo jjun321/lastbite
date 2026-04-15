@@ -180,3 +180,53 @@ class OrderDetailSerializer(TotalPriceMixin, serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'items', 'total_price']
+
+class OrderItemDetailSerializer(serializers.ModelSerializer):
+    """GET /orders/{order_id}/items/{product_id}"""
+    order_id      = serializers.IntegerField(source='order_id_id')
+    product_id    = serializers.IntegerField(source='product_id_id')
+    product_name  = serializers.CharField(source='product_id.product_name')
+    product_desc  = serializers.CharField(source='product_id.product_desc')
+    category_name = serializers.SerializerMethodField()
+    discount_rate = serializers.SerializerMethodField()
+    subtotal      = serializers.SerializerMethodField()
+    img_url       = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = OrderProdList
+        fields = [
+            'order_id',
+            'product_id',
+            'product_name',
+            'product_desc',
+            'category_name',
+            'order_prod_count',
+            'product_ori_price',
+            'product_dis_price',
+            'discount_rate',
+            'subtotal',
+            'img_url',
+        ]
+
+    def get_category_name(self, obj):
+        # product → category JOIN
+        category = obj.product_id.category_id
+        return category.category_name if category else None
+
+    def get_discount_rate(self, obj):
+        # 주문 시점 가격 기준으로 계산 (product 테이블 아님)
+        ori = obj.product_ori_price or 0
+        dis = obj.product_dis_price or 0
+        if ori == 0:
+            return 0
+        return int((1 - dis / ori) * 100)
+
+    def get_subtotal(self, obj):
+        return obj.product_dis_price * obj.order_prod_count
+
+    def get_img_url(self, obj):
+        # ProductImg → Image JOIN, 첫 번째 이미지 반환
+        product_img = obj.product_id.productimg_set.select_related('img_id').first()
+        if not product_img:
+            return None
+        return product_img.img_id.img_url
