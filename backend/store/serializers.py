@@ -13,6 +13,7 @@ class StoreListSerializer(serializers.ModelSerializer):
     today_close = serializers.SerializerMethodField()
     is_off_today = serializers.SerializerMethodField()
     rep_product = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
 
     class Meta:
         model = Store
@@ -21,7 +22,7 @@ class StoreListSerializer(serializers.ModelSerializer):
             'store_lat', 'store_long',
             'is_closed', 'distance_km',
             'today_open', 'today_close', 'is_off_today',
-            'rep_product',
+            'rep_product','is_favorite',
         ]
 
     def get_distance_km(self, obj):
@@ -67,23 +68,34 @@ class StoreListSerializer(serializers.ModelSerializer):
             'discount_rate': rate,
         }
 
+    def get_is_favorite(self, obj):
+        # context에 미리 로드된 집합에서 O(1) 조회 → N+1 없음
+        favorite_ids = self.context.get('favorite_store_ids', set())
+        return obj.pk in favorite_ids
+
 
 class StoreDetailSerializer(serializers.ModelSerializer):
     #GET /stores/{store_id}/ — 매장 상세
     store_id = serializers.IntegerField(source='pk')
     is_closed = serializers.BooleanField()
     is_off_today = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
 
     class Meta:
         model = Store
         fields = [
             'store_id', 'store_name', 'store_address',
             'store_desc','store_lat', 'store_long',
-            'is_closed', 'is_off_today',
+            'is_closed', 'is_off_today', 'is_favorite',
         ]
 
     def get_is_off_today(self, obj):
         return is_off_today(obj)
+
+    def get_is_favorite(self, obj):
+        # context에 미리 로드된 집합에서 O(1) 조회
+        favorite_ids = self.context.get('favorite_store_ids', set())
+        return obj.pk in favorite_ids
 
 
 class StoreWorkingTimeSerializer(serializers.ModelSerializer):

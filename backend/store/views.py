@@ -24,6 +24,16 @@ def api_response(success, message, data=None):
         res['data'] = data
     return res
 
+def get_favorite_store_ids(user) -> set:
+    """
+    로그인 유저가 즐겨찾기한 store_id를 집합으로 반환.
+    단 1번의 DB 쿼리로 처리 → serializer에서 N+1 없이 O(1) 조회 가능.
+    """
+    return set(
+        Favorite.objects
+        .filter(user_id=user)
+        .values_list('store_id', flat=True)
+    )
 
 class StoreListView(APIView):
     """
@@ -57,6 +67,8 @@ class StoreListView(APIView):
             'storeworkingtime_set', 'offdate_set', 'product_set'
         )
 
+        favorite_store_ids = get_favorite_store_ids(request.user)
+
         # 위치 기반 필터
         if lat is not None and lon is not None:
             # 1차: 바운딩 박스로 DB 범위 축소
@@ -83,13 +95,13 @@ class StoreListView(APIView):
 
             total = len(with_dist)
             paged = [s for _, s in with_dist[page * size:(page + 1) * size]]
-            serializer = StoreListSerializer(paged, many=True, context={'ref_lat': lat, 'ref_lon': lon})
+            serializer = StoreListSerializer(paged, many=True, context={'ref_lat': lat, 'ref_lon': lon, 'favorite_store_ids': favorite_store_ids})
 
         else:
             # 좌표 없으면 전체 조회
             total = qs.count()
             paged_qs = qs.order_by('-reg_dt')[page * size:(page + 1) * size]
-            serializer = StoreListSerializer(paged_qs, many=True, context={'ref_lat': None, 'ref_lon': None})
+            serializer = StoreListSerializer(paged_qs, many=True, context={'ref_lat': None, 'ref_lon': None, 'favorite_store_ids': favorite_store_ids})
 
         return Response(api_response(True, "성공", {
             'total': total,
@@ -113,7 +125,9 @@ class StoreDetailView(APIView):
         except Store.DoesNotExist:
             return Response(api_response(False, "RES_001"), status=status.HTTP_404_NOT_FOUND)
 
-        serializer = StoreDetailSerializer(store)
+        favorite_store_ids = get_favorite_store_ids(request.user)
+
+        serializer = StoreDetailSerializer(store, context={'favorite_store_ids': favorite_store_ids})
         return Response(api_response(True, "성공", serializer.data), status=status.HTTP_200_OK)
 
 
