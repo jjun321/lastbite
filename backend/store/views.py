@@ -34,9 +34,9 @@ class StoreListView(APIView):
     def get(self, request):
         try:
             lat = float(request.query_params['lat']) if 'lat' in request.query_params else None
-            long = float(request.query_params['long']) if 'long' in request.query_params else None
+            lon = float(request.query_params['lon']) if 'lon' in request.query_params else None
         except ValueError:
-            return Response(api_response(False, "lat/long 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
+            return Response(api_response(False, "lat/lon 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
 
         try:
             radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
@@ -58,7 +58,7 @@ class StoreListView(APIView):
         )
 
         # 위치 기반 필터
-        if lat is not None and long is not None:
+        if lat is not None and lon is not None:
             # 1차: 바운딩 박스로 DB 범위 축소
             lat_delta = radius / 111.0
             cos_lat = math.cos(math.radians(lat)) or 1
@@ -67,8 +67,8 @@ class StoreListView(APIView):
             qs = qs.filter(
                 store_lat__gte=lat - lat_delta,
                 store_lat__lte=lat + lat_delta,
-                store_long__gte=long - long_delta,
-                store_long__lte=long + long_delta,
+                store_long__gte=lon - long_delta,
+                store_long__lte=lon + long_delta,
             )
 
             # 2차: Haversine 정밀 필터 + 거리순 정렬
@@ -76,20 +76,20 @@ class StoreListView(APIView):
             for store in qs:
                 if store.store_lat is None or store.store_long is None:
                     continue
-                dist = haversine_km(lat, long, float(store.store_lat), float(store.store_long))
+                dist = haversine_km(lat, lon, float(store.store_lat), float(store.store_long))
                 if dist <= radius:
                     with_dist.append((dist, store))
             with_dist.sort(key=lambda x: x[0])
 
             total = len(with_dist)
             paged = [s for _, s in with_dist[page * size:(page + 1) * size]]
-            serializer = StoreListSerializer(paged, many=True, context={'ref_lat': lat, 'ref_long': long})
+            serializer = StoreListSerializer(paged, many=True, context={'ref_lat': lat, 'ref_lon': lon})
 
         else:
             # 좌표 없으면 전체 조회
             total = qs.count()
             paged_qs = qs.order_by('-reg_dt')[page * size:(page + 1) * size]
-            serializer = StoreListSerializer(paged_qs, many=True, context={'ref_lat': None, 'ref_long': None})
+            serializer = StoreListSerializer(paged_qs, many=True, context={'ref_lat': None, 'ref_lon': None})
 
         return Response(api_response(True, "성공", {
             'total': total,
