@@ -7,10 +7,12 @@ from rest_framework.views import APIView
 from common.response import error_response, extract_first_error, success_response
 from notification.utils import notify_order_cancelled, notify_order_received
 from order.models.order import Order
+from order.models.orderProdList import OrderProdList
 from order.serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    OrderItemDetailSerializer
 )
 from product.models.product import Product
 
@@ -157,3 +159,38 @@ class OrderCancelView(APIView):
             },
             message="주문이 취소되었습니다.",
         )
+
+class OrderItemDetailView(APIView):
+    """
+    GET /orders/{order_id}/items/{product_id}
+    주문 내 특정 상품 상세 조회
+    - 가격은 현재 product 테이블이 아닌 주문 시점 order_item 기준
+    - 본인 주문만 접근 가능
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, order_id, product_id):
+        # 1. 주문 존재 + 본인 소유 확인
+        order = get_order_or_404(order_id, request.user)
+        if not order:
+            return error_response(
+                message="주문을 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        # 2. 해당 주문 내 상품 조회
+        try:
+            order_item = (
+                OrderProdList.objects
+                .select_related('product_id__category_id')
+                .prefetch_related('product_id__productimg_set__img_id')
+                .get(order_id=order, product_id=product_id)
+            )
+        except OrderProdList.DoesNotExist:
+            return error_response(
+                message="해당 주문에 존재하지 않는 상품입니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = OrderItemDetailSerializer(order_item)
+        return success_response(data=serializer.data)
