@@ -14,7 +14,7 @@ from store.models.favorite import Favorite
 from common.response import success_response, error_response, extract_first_error
 
 DEFAULT_RADIUS_KM = 3
-MAX_RADIUS_KM = 10
+MAX_RADIUS_KM = 3000
 MAX_PAGE_SIZE = 50
 
 
@@ -36,7 +36,7 @@ class StoreListView(APIView):
             lat = float(request.query_params['lat']) if 'lat' in request.query_params else None
             lon = float(request.query_params['lon']) if 'lon' in request.query_params else None
         except ValueError:
-            return Response(api_response(False, "lat/lon 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
+            return Response(api_response(False, "lat/long 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
 
         try:
             radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
@@ -67,8 +67,8 @@ class StoreListView(APIView):
             qs = qs.filter(
                 store_lat__gte=lat - lat_delta,
                 store_lat__lte=lat + lat_delta,
-                store_lon__gte=lon - lon_delta,
-                store_lon__lte=lon + lon_delta,
+                store_long__gte=lon - lon_delta,
+                store_long__lte=lon + lon_delta,
             )
 
             # 2차: Haversine 정밀 필터 + 거리순 정렬
@@ -76,7 +76,7 @@ class StoreListView(APIView):
             for store in qs:
                 if store.store_lat is None or store.store_long is None:
                     continue
-                dist = haversine_km(lat, lon, float(store.store_lat), store.store_long)
+                dist = haversine_km(lat, lon, float(store.store_lat), float(store.store_long))
                 if dist <= radius:
                     with_dist.append((dist, store))
             with_dist.sort(key=lambda x: x[0])
