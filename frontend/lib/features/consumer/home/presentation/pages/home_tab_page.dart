@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:frontend/features/store/data/models/store_model.dart';
 import 'package:frontend/features/store/data/repositories/store_repository_impl.dart';
@@ -7,7 +8,6 @@ import 'package:frontend/features/consumer/home/presentation/widgets/location_pr
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/map_view.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/distance_filter_dialog.dart';
-import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 
 class HomeTabPage extends StatefulWidget {
   const HomeTabPage({super.key});
@@ -29,6 +29,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
   Position? _currentPosition;
   bool _isLoadingLocation = false;
 
+  /// 현재 선택된 거리 필터 (km 단위, 0 = 필터 없음)
   int _filterDistance = 3; // 기본 반경 3km
 
   @override
@@ -58,7 +59,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       });
     } catch (e, stacktrace) {
       print('❌ 매장 불러오기 실패 에러: $e');
-      print('❌ 스택트레이스: $stacktrace'); // 어디서 터졌는지 알려줍니다.
+      print('❌ 스택트레이스: $stacktrace');
       setState(() {
         _isLoadingStores = false;
       });
@@ -71,6 +72,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     setState(() => _isLoadingLocation = true);
 
     try {
+      // 위치 서비스 활성화 확인
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) _showSnackBar('위치 서비스가 비활성화되어 있습니다.');
@@ -78,6 +80,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
         return;
       }
 
+      // 위치 권한 확인
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -94,9 +97,10 @@ class _HomeTabPageState extends State<HomeTabPage> {
         return;
       }
 
+      // 현재 위치 가져오기
       final position = await Geolocator.getCurrentPosition(
         locationSettings:
-        const LocationSettings(accuracy: LocationAccuracy.high),
+            const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       setState(() {
@@ -106,7 +110,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
       // 위치 받으면 주변 매장 다시 조회
       await _fetchStores(lat: position.latitude, lon: position.longitude);
-
     } catch (e) {
       setState(() => _isLoadingLocation = false);
       if (mounted) _showSnackBar('위치를 가져오는데 실패했습니다.');
@@ -133,8 +136,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
       final label = result == 0
           ? '전체'
           : result >= 1000
-          ? '${result ~/ 1000}km'
-          : '${result}m';
+              ? '${result ~/ 1000}km'
+              : '${result}m';
       if (mounted) _showSnackBar('반경 $label 내 가게를 표시합니다.');
     }
   }
@@ -185,27 +188,27 @@ class _HomeTabPageState extends State<HomeTabPage> {
           child: _isLoadingStores
               ? const Center(child: CircularProgressIndicator())
               : _storeError != null
-              ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: Colors.red),
-                const SizedBox(height: 12),
-                Text(_storeError!),
-                TextButton(
-                  onPressed: () => _fetchStores(
-                    lat: _currentPosition?.latitude,
-                    lon: _currentPosition?.longitude,
-                  ),
-                  child: const Text('다시 시도'),
-                ),
-              ],
-            ),
-          )
-              : _isListView
-              ? _buildListView()
-              : _buildMapView(),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 48, color: Colors.red),
+                          const SizedBox(height: 12),
+                          Text(_storeError!),
+                          TextButton(
+                            onPressed: () => _fetchStores(
+                              lat: _currentPosition?.latitude,
+                              lon: _currentPosition?.longitude,
+                            ),
+                            child: const Text('다시 시도'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _isListView
+                      ? _buildListView()
+                      : _buildMapView(),
         ),
       ],
     );
@@ -221,6 +224,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       itemBuilder: (context, index) {
         return StoreCard(
           store: _stores[index],
+          onFavoriteTap: () => _toggleFavorite(index),
           onTap: () {
             Navigator.push(
               context,
@@ -229,13 +233,15 @@ class _HomeTabPageState extends State<HomeTabPage> {
               ),
             );
           },
-          onFavoriteTap: () => _toggleFavorite(index),
         );
       },
     );
   }
 
   Widget _buildMapView() {
+    if (_isLoadingStores) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return MapView(
       stores: _stores,
       showAiRecommended: _showAiRecommended,

@@ -6,12 +6,7 @@ class StoreCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteTap;
 
-  const StoreCard({
-    super.key,
-    required this.store,
-    this.onTap,
-    this.onFavoriteTap,
-  });
+  const StoreCard({super.key, required this.store, this.onTap, this.onFavoriteTap});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +28,7 @@ class StoreCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// ─── 가게 이미지 영역 (1번 디자인 그대로) ───
+            /// ─── 가게 이미지 영역 ───
             Container(
               height: 160,
               width: double.infinity,
@@ -43,7 +38,6 @@ class StoreCard extends StatelessWidget {
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
-                // 현재 모델에 imageUrl 필드가 없으므로 1번의 아이콘 디자인만 적용
               ),
               child: const Center(
                 child: Icon(
@@ -60,7 +54,7 @@ class StoreCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// 가게 이름 + 찜 아이콘 (변수명: storeName)
+                  /// 가게 이름 + 찜 아이콘
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -89,10 +83,9 @@ class StoreCard extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 6),
 
-                  /// 주소 표시 (1번의 카테고리 자리에 주소 연결)
+                  /// 주소
                   Text(
                     store.storeAddress,
                     style: const TextStyle(
@@ -102,14 +95,13 @@ class StoreCard extends StatelessWidget {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 8),
 
-                  /// 거리 + 마감 시간 (1번의 별점 디자인 레이아웃 유지)
+                  /// 거리 + 마감 시간
                   Row(
                     children: [
                       const Icon(
-                        Icons.place_outlined, // 별점 대신 거리 아이콘
+                        Icons.place_outlined,
                         size: 18,
                         color: Color(0xFF9E9E9E),
                       ),
