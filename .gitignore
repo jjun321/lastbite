@@ -153,3 +153,7 @@ CLAUDE.md
 # ───── OS ─────
 .DS_Store
 Thumbs.db
+
+
+# etc
+/backend/ngrok.exe

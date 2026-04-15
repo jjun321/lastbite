@@ -4,7 +4,7 @@ import math
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 
 from store.models.store import Store
 from product.models.product import Product
@@ -74,13 +74,13 @@ class StoreListView(APIView):
             # 1차: 바운딩 박스로 DB 범위 축소
             lat_delta = radius / 111.0
             cos_lat = math.cos(math.radians(lat)) or 1
-            lon_delta = radius / (111.0 * cos_lat)
+            long_delta = radius / (111.0 * cos_lat)
 
             qs = qs.filter(
                 store_lat__gte=lat - lat_delta,
                 store_lat__lte=lat + lat_delta,
-                store_long__gte=lon - lon_delta,
-                store_long__lte=lon + lon_delta,
+                store_long__gte=lon - long_delta,
+                store_long__lte=lon + long_delta,
             )
 
             # 2차: Haversine 정밀 필터 + 거리순 정렬
