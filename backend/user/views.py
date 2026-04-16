@@ -19,8 +19,9 @@ from common.response import success_response, error_response, extract_first_erro
 from image.models.image import Image
 from notification.utils import create_default_notification_settings
 from order.models.order import Order
+from store.models.favorite import Favorite
 from order.models.orderProdList import OrderProdList
-
+from store.serializers import StoreListSerializer
 
 # 응답 규격에 유저 객체 정보도 들어가기에 커스텀 뷰 구조 만듦
 
@@ -421,3 +422,28 @@ class UserSavingsView(APIView):
             "total_savings":    total_savings,
             "completed_orders": completed_count,
         }), status=status.HTTP_200_OK)
+
+class UserFavoriteListView(APIView):
+    """GET /users/me/favorites — 즐겨찾기 매장 목록 조회"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        favorites = (
+            Favorite.objects
+            .filter(user_id=request.user, store_id__is_deleted=False)
+            .select_related('store_id')
+            .prefetch_related(
+                'store_id__storeworkingtime_set',
+                'store_id__offdate_set',
+                'store_id__product_set',
+            )
+            .order_by('reg_dt')
+        )
+
+        stores = [fav.store_id for fav in favorites]
+        serializer = StoreListSerializer(stores, many=True)
+        return success_response(data={
+            "total":  len(stores),
+            "stores": serializer.data,
+        })

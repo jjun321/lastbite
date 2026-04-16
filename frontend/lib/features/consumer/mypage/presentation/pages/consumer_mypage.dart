@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/consumer/mypage/presentation/pages/consumer_accountpage.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:frontend/features/consumer/mypage/presentation/pages/favorite_page.dart';
+import 'package:go_router/go_router.dart';
 
 class ConsumerMyPage extends StatefulWidget {
   const ConsumerMyPage({super.key});
@@ -87,7 +89,11 @@ class _ConsumerMyPageState extends State<ConsumerMyPage> {
               _buildMenuItem(
                 iconPath: 'assets/images/icon_favorites.png',
                 title: '즐겨찾기',
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FavoritePage()),
+                  );
+                },
               ),
             ]),
 
@@ -109,7 +115,12 @@ class _ConsumerMyPageState extends State<ConsumerMyPage> {
               _buildMenuItem(
                 iconPath: 'assets/images/icon_logout.png',
                 title: '로그아웃',
-                onTap: () {},
+                onTap: () async {
+                  await _authRepo.logout();
+                  if (mounted) {
+                    context.go('/login');
+                  }
+                },
               ),
             ]),
 
