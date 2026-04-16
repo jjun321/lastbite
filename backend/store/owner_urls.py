@@ -1,5 +1,3 @@
-
-
 from django.urls import path
 from .owner_views import (
     OwnerStoreView,
@@ -9,7 +7,10 @@ from .owner_views import (
     OwnerWorkingTimeView,
     OwnerWorkingTimeManageView,
 )
-
+from product.owner_views import (
+    OwnerProductView,
+    OwnerProductManageView,
+)
 
 # /owner/stores/로 접근, 프리픽스 루트 url애서 지정
 # 기능 특성상 아예 접근 원천적으로 분리하기 위해 url 새로 라우팅
@@ -21,4 +22,6 @@ urlpatterns = [
     path('<int:store_id>/off-dates/<int:date_id>/', OwnerOffDateDeleteView.as_view(), name='owner-off-date-delete'),
     path('<int:store_id>/working-times/', OwnerWorkingTimeView.as_view(), name='owner-working-time'),
     path('<int:store_id>/working-times/<int:working_time_id>/', OwnerWorkingTimeManageView.as_view(), name='owner-working-time-manage'),
+    path('<int:store_id>/products/', OwnerProductView.as_view(), name='owner-product-list-create'),
+    path('<int:store_id>/products/<int:product_id>/', OwnerProductManageView.as_view(), name='owner-product-manage'),
 ]
