@@ -6,7 +6,7 @@ GET   /owner/stores/{store_id}/orders/                     들어온 주문 (S01
 GET   /owner/stores/{store_id}/orders/history/             주문 내역 (S02/S03/S04)
 GET   /owner/stores/{store_id}/orders/{order_id}/          주문 상세
 PATCH /owner/stores/{store_id}/orders/{order_id}/accept/   주문 수락 S01→S02
-PATCH /owner/stores/{store_id}/orders/{order_id}/cancel/   주문 취소 S01·S02→S04
+PATCH /owner/stores/{store_id}/orders/{order_id}/cancel/   주문 취소 S01→S04
 PATCH /owner/stores/{store_id}/orders/{order_id}/complete/ 픽업 완료 S02→S03
 """
 
