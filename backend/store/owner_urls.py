@@ -11,6 +11,14 @@ from product.owner_views import (
     OwnerProductView,
     OwnerProductManageView,
 )
+from order.owner_views import (
+    OwnerOrderIncomingView,
+    OwnerOrderHistoryView,
+    OwnerOrderDetailView,
+    OwnerOrderAcceptView,
+    OwnerOrderCancelView,
+    OwnerOrderCompleteView,
+)
 
 # /owner/stores/로 접근, 프리픽스 루트 url애서 지정
 # 기능 특성상 아예 접근 원천적으로 분리하기 위해 url 새로 라우팅
@@ -24,4 +32,10 @@ urlpatterns = [
     path('<int:store_id>/working-times/<int:working_time_id>/', OwnerWorkingTimeManageView.as_view(), name='owner-working-time-manage'),
     path('<int:store_id>/products/', OwnerProductView.as_view(), name='owner-product-list-create'),
     path('<int:store_id>/products/<int:product_id>/', OwnerProductManageView.as_view(), name='owner-product-manage'),
+    path('<int:store_id>/orders/', OwnerOrderIncomingView.as_view(), name='owner-order-incoming'),
+    path('<int:store_id>/orders/history/', OwnerOrderHistoryView.as_view(), name='owner-order-history'),
+    path('<int:store_id>/orders/<int:order_id>/', OwnerOrderDetailView.as_view(), name='owner-order-detail'),
+    path('<int:store_id>/orders/<int:order_id>/accept/', OwnerOrderAcceptView.as_view(), name='owner-order-accept'),
+    path('<int:store_id>/orders/<int:order_id>/cancel/', OwnerOrderCancelView.as_view(), name='owner-order-cancel'),
+    path('<int:store_id>/orders/<int:order_id>/complete/', OwnerOrderCompleteView.as_view(), name='owner-order-complete'),
 ]
