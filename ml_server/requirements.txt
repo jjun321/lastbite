@@ -1,0 +1,7 @@
+Django==4.2.29
+djangorestframework==3.15.2
+psycopg2-binary==2.9.12
+scikit-learn==1.8.0
+numpy==2.0.0
+python-dotenv==1.2.1
+python-decouple==3.8

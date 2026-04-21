@@ -1,4 +1,7 @@
 import uuid, os
+import urllib.request
+import urllib.error
+import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,8 +17,9 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from datetime import timedelta
-from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer
+from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, UserProfileSerializer, UserProfileUpdateSerializer, PasswordChangeSerializer, LocationLogCreateSerializer, LocationLogResponseSerializer
 from common.response import success_response, error_response, extract_first_error
+from user.models.location_log import LocationLog
 from image.models.image import Image
 from notification.utils import create_default_notification_settings
 from order.models.order import Order
@@ -447,3 +451,103 @@ class UserFavoriteListView(APIView):
             "total":  len(stores),
             "stores": serializer.data,
         })
+
+
+class UserLocationView(APIView):
+    """
+    GET  /users/me/locations — 위치 로그 목록 조회
+    POST /users/me/locations — 위치 저장
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        logs = LocationLog.objects.filter(user_id=request.user)
+        serializer = LocationLogResponseSerializer(logs, many=True)
+        return Response(
+            api_response(True, "성공", serializer.data),
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request):
+        serializer = LocationLogCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                api_response(False, extract_first_error(serializer.errors)),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        log = LocationLog.objects.create(
+            user_id=request.user,
+            lat=serializer.validated_data['lat'],
+            lon=serializer.validated_data['lon'],
+        )
+        res = LocationLogResponseSerializer(log)
+        return Response(
+            api_response(True, "성공", res.data),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UserLocationDetailView(APIView):
+    """
+    DELETE /users/me/locations/{log_id} — 위치 삭제
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, log_id):
+        try:
+            log = LocationLog.objects.get(log_id=log_id, user_id=request.user)
+        except LocationLog.DoesNotExist:
+            return Response(
+                api_response(False, "위치 로그를 찾을 수 없습니다."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        log.delete()
+        return Response(
+            api_response(True, "성공", {"log_id": log_id}),
+            status=status.HTTP_200_OK,
+        )
+
+
+class UserRecommendView(APIView):
+    """GET /users/me/recommendations — ML 서버에 위임"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        top_n = int(request.query_params.get('top_n', 10))
+
+        # ML 서버로 내부 HTTP 요청 (표준 라이브러리 사용, httpx 불필요)
+        ml_url = f"{settings.ML_SERVER_URL}/recommend/"
+        payload = json.dumps({
+            "user_id": request.user.user_id,
+            "top_n":   top_n,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            ml_url,
+            data=payload,
+            headers={
+                "Content-Type":       "application/json",
+                "X-Internal-API-Key": settings.ML_INTERNAL_API_KEY,
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            body = json.loads(e.read().decode("utf-8"))
+            return Response(
+                api_response(False, body.get("message", "추천 결과를 가져올 수 없습니다.")),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            return Response(
+                api_response(False, "추천 서버에 연결할 수 없습니다."),
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response(
+            api_response(True, "성공", data.get("data")),
+            status=status.HTTP_200_OK,
+        )
