@@ -1,11 +1,12 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from store.models.store import Store
 from product.models.product import Product
-from product.serializers import ProductListSerializer
+from product.serializers import ProductListSerializer, CategoryListSerializer
+from product.models.category import Category
 
 MAX_PAGE_SIZE = 50
 
@@ -60,3 +61,22 @@ class StoreProductListView(APIView):
             'size': size,
             'products': serializer.data,
         }), status=status.HTTP_200_OK)
+
+class CategoryListView(APIView) :
+    permission_classes = [IsAuthenticated]
+    # GET /stores/categories/
+    def get(self, request):
+        qs = Category.objects.filter(is_deleted=False)
+        serializer = CategoryListSerializer(qs, many=True)
+        return Response(api_response(True, "성공", serializer.data), status=status.HTTP_200_OK)
+
+class CategoryDetailView(APIView) :
+    permission_classes = [IsAuthenticated]
+    # GET /stores/categories/{category_id}
+    def get(self, request, category_id):
+        try:
+            qs = Category.objects.filter(category_id=category_id, is_deleted=False)
+            serializer = CategoryListSerializer(qs, many=True)
+            return Response(api_response(True, "성공", serializer.data), status=status.HTTP_200_OK)
+        except Category.DoesNotExist:
+            return Response(api_response(False, "RES_001"), status=status.HTTP_404_NOT_FOUND)

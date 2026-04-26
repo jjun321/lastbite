@@ -2,6 +2,7 @@ import re
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from user.models.user import User
+from user.models.choices import USER_TYPE_CHOICE
 
 # TokenObtainPairSerializer 상속으로 구현한 로그인 시리얼라이저
 class LoginSerializer(TokenObtainPairSerializer):
@@ -35,10 +36,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(write_only=True, required=True)
     user_password = serializers.CharField(write_only=True, required=True, min_length=8, max_length=20)
     user_phone = serializers.CharField(required=True, max_length=30)
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICE, required=True)
 
     class Meta:
         model = User
-        fields = ['user_name', 'user_email', 'user_phone', 'user_password', 'password_confirm']
+        fields = ['user_name', 'user_email', 'user_phone', 'user_password', 'password_confirm', 'user_type']
 
     def validate_user_phone(self, value):
         # 전화번호 형식 검사
@@ -63,13 +65,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         # 유저 생성
         validated_data.pop('password_confirm')
         password = validated_data.pop('user_password')
-        
+        user_type = validated_data.pop('user_type')
+
         user = User.objects.create_user(
             user_email=validated_data['user_email'],
             password=password,
             user_name=validated_data['user_name'],
             user_phone=validated_data['user_phone'],
-            user_type='U01',  # 계정 생성 시 사용자로 고정
+            user_type=user_type,  # 계정 생성 시 사용자로 고정
             profile_img_id=None
         )
         return user
