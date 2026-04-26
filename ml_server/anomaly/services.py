@@ -17,8 +17,8 @@ import numpy as np
 from django.conf import settings
 from sklearn.ensemble import IsolationForest
 
-from recommend.models import PriceLog
 
+from anomaly.models import PriceLog
 
 # ── Isolation Forest 파라미터 ─────────────────────────────────────────────────
 IF_CONTAMINATION  = getattr(settings, "IF_CONTAMINATION",  0.1)

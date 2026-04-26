@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",          # managed=False 모델 참조 시 필요
     "rest_framework",
     "recommend",
+    "anomaly",
 ]
 
 MIDDLEWARE = [
