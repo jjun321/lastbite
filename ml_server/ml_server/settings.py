@@ -81,3 +81,9 @@ SEARCH_RADIUS_KM   = 10.0   # 군집 중심 기준 매장 탐색 반경 (km) 테
 RECOMMEND_ALPHA = 0.5   # 거리 가중치
 RECOMMEND_BETA  = 0.2   # 조회수 가중치
 RECOMMEND_GAMMA = 0.3   # 할인율 가중치
+
+# ── Isolation Forest 파라미터 ─────────────────────────────────────────────────
+IF_CONTAMINATION = 0.1   # 이상치 비율 (전체 데이터의 10% 이상치로 가정)
+IF_N_ESTIMATORS  = 100   # 트리 개수
+IF_RANDOM_STATE  = 42    # 재현성 보장
+IF_MIN_SAMPLES   = 5     # 학습 최소 데이터 수 (미만이면 탐지 생략)

@@ -17,6 +17,7 @@ urlpatterns = [
     path("cart/", include("cart.urls")),
     path("posts/", include("post.urls")),
     path("notifications/", include("notification.urls")),
+    path("anomaly/", include("product.anomaly_urls")),
 ]
 
 #개발환경에서 미디어 파일 제공을 위한 코드, 임시 사용 코드
