@@ -117,7 +117,16 @@ class AnomalyCheckView(APIView):
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        return success_response(data=result.get("data"))
+        ml_data = result.get("data", {})
+        response_data = {
+            **ml_data,  # is_anomaly, direction, message, dataset_mean, dataset_median
+            "price_info": {  # ← 추가 블록
+                "product_ori_price": ori_price,
+                "product_dis_price": dis_price,
+                "discount_rate": discount_rate,
+            },
+        }
+        return success_response(data=response_data)
 
 
 # ── 뷰 2: 소비자 특가 알림 발송 (스케줄러/관리자 호출) ───────────────────────
