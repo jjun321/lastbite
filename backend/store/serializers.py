@@ -215,13 +215,16 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
         # 운영시간 전달 시 전체 교체(upsert)
         if working_times is not None:
             instance.storeworkingtime_set.all().delete()
-            for wt in working_times:
-                StoreWorkingTime.objects.create(
+            working_times = [
+                StoreWorkingTime(
                     store_id=instance,
-                    working_day=wt['working_day'],
-                    start_time=wt['start_time'],
-                    end_time=wt['end_time'],
-                )
+                    working_day=f'D{i:02d}',
+                    start_time=working_times.get('start_time'),
+                    end_time=working_times.get('end_time')
+                ) for i in range(1, 8)  # 월(D01) ~ 일(D07)
+            ]
+            StoreWorkingTime.objects.bulk_create(working_times)
+
         if off_dates is not None :
             for od in off_dates:
                 OffDate.objects.create(
