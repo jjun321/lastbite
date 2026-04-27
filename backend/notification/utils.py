@@ -121,3 +121,15 @@ def notify_order_cancelled(order):
         target_id=order.order_id,
         target_type="ORDER",
     )
+
+def notify_order_accepted(order):
+    """
+    N05: 주문 수락 → 소비자에게 알림.
+    점주 앱 주문 수락(S02) API 구현 시 해당 뷰에서 호출.
+    """
+    _create_log(
+        receiver=order.user_id,
+        notification_type="N05",
+        target_id=order.order_id,
+        target_type="ORDER",
+    )

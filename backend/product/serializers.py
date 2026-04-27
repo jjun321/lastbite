@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from product.models.product import Product
+from product.models.category import Category
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -49,3 +50,14 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     def get_is_available(self, obj):
         return (obj.product_count or 0) > 0
+
+
+class CategoryListSerializer(serializers.ModelSerializer):
+    category_id = serializers.IntegerField(source='pk')
+
+    class Meta:
+        model = Category
+        fields = [
+            'category_id',
+            'category_name'
+        ]
