@@ -2,13 +2,13 @@ from rest_framework import serializers
 
 class AnomalyDetectSerializer(serializers.Serializer):
     """POST /anomaly/detect/ 요청 검증 — 단건 이상치 탐지"""
-    store_id      = serializers.IntegerField(min_value=1)
+    store_id      = serializers.IntegerField(min_value=0)
     discount_rate = serializers.IntegerField(min_value=0, max_value=100)
 
 
 class _AnomalyItemSerializer(serializers.Serializer):
-    store_id      = serializers.IntegerField(min_value=1)
-    product_id    = serializers.IntegerField(min_value=1)
+    store_id      = serializers.IntegerField(min_value=0)
+    product_id    = serializers.IntegerField(min_value=0)
     discount_rate = serializers.IntegerField(min_value=0, max_value=100)
 
 

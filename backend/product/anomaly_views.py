@@ -159,7 +159,6 @@ class AnomalyNotifySpecialDealsView(APIView):
         stores = Store.objects.filter(is_deleted=False, is_closed=False).prefetch_related(
             "product_set"
         )
-
         # 각 매장의 대표 상품(할인가 최저) 할인율 수집
         store_products = []
         for store in stores:

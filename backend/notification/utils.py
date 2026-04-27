@@ -125,7 +125,7 @@ def notify_order_cancelled(order):
 
 def notify_special_deal(user, product_id, store_id):
     """
-    N05: 특가 상품 알림 → 소비자에게 알림.
+    N06: 특가 상품 알림 → 소비자에게 알림.
     이상치 탐지에서 '너무 높은 할인(소비자 혜택)' 판정된 상품을
     주기 작업(scheduled task)에서 근처 소비자에게 발송할 때 호출.
 
