@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // 점주 쪽 기능 구현 확인만을 위해 제작된 서비스 페이지 - 추후 소비자와 통합 예정
 // API 기본 URL — 실기기 테스트 시 실제 서버 IP로 교체
 
 const String kBaseUrl =
-    'https://joya-nonstrategical-supersmartly.ngrok-free.dev/'; // Android 에뮬레이터 localhost
+    'https://joya-nonstrategical-supersmartly.ngrok-free.dev'; // Android 에뮬레이터 localhost
 
 /// 공통 서비스 클래스 — 토큰 저장/로드, 인증 헤더 생성
 class AuthService {
@@ -31,17 +32,36 @@ class AuthService {
 
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyAccess);
+    String? token = prefs.getString(_keyAccess);
+    if (token != null) return token;
+
+    const storage = FlutterSecureStorage();
+    token = await storage.read(key: 'access_token');
+    return token;
   }
 
   static Future<String?> getUserType() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyUserType);
+    String? type = prefs.getString(_keyUserType);
+    if (type != null) return type;
+
+    const storage = FlutterSecureStorage();
+    final userJson = await storage.read(key: 'user_info');
+    if (userJson != null) {
+      try {
+        final Map<String, dynamic> user = jsonDecode(userJson);
+        return user['user_type'];
+      } catch (_) {}
+    }
+    return null;
   }
 
   static Future<void> clearTokens() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+
+    const storage = FlutterSecureStorage();
+    await storage.deleteAll();
   }
 
   // ── 인증 헤더 ──

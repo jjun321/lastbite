@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/product_service.dart';
 import 'package:frontend/features/owner/sales/presentation/widgets/product_action_dialog.dart';
 import 'package:frontend/features/owner/sales/presentation/widgets/discount_warning_dialog.dart';
@@ -240,6 +241,7 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
         oriPrice: ori,
         disPrice: dis,
         count: _count,
+        imageFile: _image,
       );
       if (res['success'] == true) {
         _snack('상품이 수정되었습니다.');
@@ -535,7 +537,18 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.network(networkUrl, fit: BoxFit.cover),
+                        child: Image.network(
+                          // 상대 경로인 경우 baseUrl 붙이기
+                          networkUrl.startsWith('http')
+                              ? networkUrl
+                              : '$kBaseUrl$networkUrl',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.add_circle_outline,
+                            size: 36,
+                            color: Color(0xFFAAAAAA),
+                          ),
+                        ),
                       ),
                       Positioned(
                         right: 6,

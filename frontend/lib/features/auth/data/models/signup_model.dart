@@ -7,6 +7,7 @@ class SignupRequest {
   final String userPhone;
   final String userPassword;
   final String passwordConfirm;
+  final String userType;
 
   SignupRequest({
     required this.userName,
@@ -14,6 +15,7 @@ class SignupRequest {
     required this.userPhone,
     required this.userPassword,
     required this.passwordConfirm,
+    required this.userType,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +25,7 @@ class SignupRequest {
       'user_phone': userPhone,
       'user_password': userPassword,
       'password_confirm': passwordConfirm,
+      'user_type': userType,
     };
   }
 }

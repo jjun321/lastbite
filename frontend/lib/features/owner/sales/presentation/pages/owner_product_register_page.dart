@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/services/product_service.dart';
+import 'package:frontend/services/ocr_service.dart';
 import 'package:frontend/features/owner/sales/presentation/pages/owner_product_registerok_page.dart';
 
 // 상품 등록 화면
@@ -22,6 +23,9 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
 
   List<Map<String, dynamic>> _categories = [];
   int? _selectedCategoryId;
+  // 카테고리 API 실패 시 직접 입력 대체용
+  final _categoryCtrl = TextEditingController();
+  bool _categoryLoadFailed = false;
   int _count = 5;
   File? _image;
   bool _isLoading = true;
@@ -34,18 +38,83 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
   }
 
   Future<void> _loadCategories() async {
-    final cats = await ProductService.getCategories();
-    if (mounted)
-      setState(() {
-        _categories = cats;
-        _isLoading = false;
-      });
+    try {
+      final cats = await ProductService.getCategories().timeout(
+        const Duration(seconds: 10),
+      );
+      if (mounted) {
+        setState(() {
+          _categories = cats;
+          _categoryLoadFailed = cats.isEmpty;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _categoryLoadFailed = true;
+          _isLoading = false;
+        });
+      }
+    }
   }
 
-  Future<void> _pickImageFromSource(ImageSource source) async {
+  /// 이미지를 선택하고 OCR로 상품 정보를 자동 인식합니다.
+  Future<void> _pickImageAndOcr(ImageSource source) async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: source, imageQuality: 80);
-    if (file != null && mounted) setState(() => _image = File(file.path));
+    final file = await picker.pickImage(source: source, imageQuality: 85);
+    if (file == null || !mounted) return;
+
+    final imageFile = File(file.path);
+    setState(() => _image = imageFile);
+
+    // OCR 로딩 다이얼로그 표시
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _OcrLoadingDialog(),
+    );
+
+    try {
+      final result = await OcrService.recognizeProduct(imageFile);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+
+      if (result.hasData) {
+        // 인식 결과 확인 다이얼로그 표시
+        final confirmed = await _showOcrResultDialog(result);
+        if (confirmed == true && mounted) {
+          setState(() {
+            if (result.productName != null) {
+              _nameCtrl.text = result.productName!;
+            }
+            if (result.originalPrice != null) {
+              _oriCtrl.text = result.originalPrice.toString();
+            }
+            if (result.discountPrice != null) {
+              _disCtrl.text = result.discountPrice.toString();
+            }
+          });
+        }
+      } else {
+        _snack('상품 정보를 인식하지 못했어요. 직접 입력해주세요.');
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+        _snack('인식 중 오류가 발생했어요. 직접 입력해주세요.');
+      }
+    }
+  }
+
+  /// OCR 인식 결과를 확인하는 다이얼로그
+  Future<bool?> _showOcrResultDialog(OcrProductResult result) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _OcrResultDialog(result: result),
+    );
   }
 
   Future<void> _showImagePicker() async {
@@ -112,7 +181,7 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _pickImageFromSource(ImageSource.gallery);
+                _pickImageAndOcr(ImageSource.gallery);
               },
             ),
             const Divider(height: 1, color: Color(0xFFEEEEEE)),
@@ -146,7 +215,7 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _pickImageFromSource(ImageSource.camera);
+                _pickImageAndOcr(ImageSource.camera);
               },
             ),
           ],
@@ -164,8 +233,13 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
       _snack('상품 이름을 입력해주세요.');
       return;
     }
-    if (_selectedCategoryId == null) {
+    // 카테고리: 드롭다운 선택 또는 직접 입력 중 하나라도 있어야 함
+    if (!_categoryLoadFailed && _selectedCategoryId == null) {
       _snack('카테고리를 선택해주세요.');
+      return;
+    }
+    if (_categoryLoadFailed && _categoryCtrl.text.trim().isEmpty) {
+      _snack('카테고리를 입력해주세요.');
       return;
     }
     if (ori <= 0) {
@@ -181,11 +255,13 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
     try {
       final res = await ProductService.createProduct(
         storeId: widget.storeId,
-        categoryId: _selectedCategoryId!,
+        categoryId: _categoryLoadFailed ? null : _selectedCategoryId,
+        categoryName: _categoryLoadFailed ? _categoryCtrl.text.trim() : null,
         productName: name,
         oriPrice: ori,
         disPrice: dis,
         count: _count,
+        imageFile: _image,
       );
       if (res['success'] == true) {
         if (mounted) {
@@ -384,37 +460,49 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
     ),
   );
 
-  Widget _dropdownCategory() => Container(
-    height: 50,
-    decoration: BoxDecoration(
-      color: const Color(0xFFF0F4F0),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<int>(
-        value: _selectedCategoryId,
-        isExpanded: true,
-        hint: const Text(
-          '000000',
-          style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
-        ),
-        icon: const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: Color(0xFF666666),
-        ),
-        items: _categories
-            .map<DropdownMenuItem<int>>(
-              (c) => DropdownMenuItem(
-                value: c['category_id'] as int,
-                child: Text(c['category_name'] as String),
-              ),
-            )
-            .toList(),
-        onChanged: (v) => setState(() => _selectedCategoryId = v),
+  Widget _dropdownCategory() {
+    // 카테고리 API 실패 시 직접 텍스트 입력으로 대체
+    if (_categoryLoadFailed) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _input(_categoryCtrl, hint: '카테고리를 직접 입력해주세요'),
+          const SizedBox(height: 4),
+        ],
+      );
+    }
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4F0),
+        borderRadius: BorderRadius.circular(12),
       ),
-    ),
-  );
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _selectedCategoryId,
+          isExpanded: true,
+          hint: const Text(
+            '카테고리를 선택하세요',
+            style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+          ),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: Color(0xFF666666),
+          ),
+          items: _categories
+              .map<DropdownMenuItem<int>>(
+                (c) => DropdownMenuItem(
+                  value: c['category_id'] as int,
+                  child: Text(c['category_name'] as String),
+                ),
+              )
+              .toList(),
+          onChanged: (v) => setState(() => _selectedCategoryId = v),
+        ),
+      ),
+    );
+  }
 
   Widget _counter() => Container(
     height: 50,
@@ -502,4 +590,287 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
       ),
     ],
   );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// OCR 로딩 다이얼로그
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class _OcrLoadingDialog extends StatelessWidget {
+  const _OcrLoadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F4F0),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF4FA75A),
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '상품 정보를 인식 중이에요',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF333333),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '가격표를 분석하고 있어요...',
+              style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// OCR 인식 결과 확인 다이얼로그
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class _OcrResultDialog extends StatelessWidget {
+  final OcrProductResult result;
+  const _OcrResultDialog({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 아이콘
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.document_scanner_rounded,
+                color: Color(0xFF4FA75A),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '인식 결과',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF333333),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '아래 정보를 상품 등록에 적용할까요?',
+              style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
+            ),
+            const SizedBox(height: 20),
+
+            // 인식 결과 카드
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAF8),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE0E8E0)),
+              ),
+              child: Column(
+                children: [
+                  if (result.productName != null)
+                    _resultRow(
+                      icon: Icons.shopping_bag_outlined,
+                      label: '상품명',
+                      value: result.productName!,
+                    ),
+                  if (result.originalPrice != null) ...[
+                    const _ResultDivider(),
+                    _resultRow(
+                      icon: Icons.label_outline_rounded,
+                      label: '정가',
+                      value: '${_formatPrice(result.originalPrice!)}원',
+                    ),
+                  ],
+                  if (result.discountPrice != null) ...[
+                    const _ResultDivider(),
+                    _resultRow(
+                      icon: Icons.discount_outlined,
+                      label: '할인가',
+                      value: '${_formatPrice(result.discountPrice!)}원',
+                      valueColor: const Color(0xFFE53935),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 버튼
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF666666),
+                        side: const BorderSide(color: Color(0xFFDDDDDD)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        '취소',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4FA75A),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        '적용하기',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _resultRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF4FA75A)),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF888888),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? const Color(0xFF333333),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPrice(int price) {
+    final text = price.toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      if (i > 0 && (text.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(text[i]);
+    }
+    return buffer.toString();
+  }
+}
+
+class _ResultDivider extends StatelessWidget {
+  const _ResultDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Divider(height: 1, color: Color(0xFFE8ECE8)),
+    );
+  }
 }

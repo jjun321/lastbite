@@ -10,12 +10,23 @@ class StoreService {
 
   // ── 내 가게 조회 (가게가 없으면 null) ──
   static Future<Map<String, dynamic>?> getMyStore() async {
-    final res = await http.get(
-      Uri.parse('$_base/stores/my/'),
-      headers: await AuthService.authHeaders(),
-    );
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (body['success'] == true) return body['data'] as Map<String, dynamic>;
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/owner/stores/'),
+        headers: await AuthService.authHeaders(),
+      );
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (body['success'] == true) {
+        final data = body['data'];
+        if (data is List && data.isNotEmpty) {
+          return data.first as Map<String, dynamic>;
+        } else if (data is Map<String, dynamic>) {
+          return data;
+        }
+      }
+    } catch (e) {
+      print('getMyStore error: $e');
+    }
     return null; // 404 = 가게 없음
   }
 
@@ -42,7 +53,7 @@ class StoreService {
     };
 
     final res = await http.post(
-      Uri.parse('$_base/stores/'),
+      Uri.parse('$_base/owner/stores/'),
       headers: await AuthService.authHeaders(),
       body: jsonEncode(body),
     );
@@ -73,7 +84,7 @@ class StoreService {
     };
 
     final res = await http.put(
-      Uri.parse('$_base/stores/$storeId/'),
+      Uri.parse('$_base/owner/stores/$storeId/'),
       headers: await AuthService.authHeaders(),
       body: jsonEncode(body),
     );

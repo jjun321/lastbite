@@ -158,9 +158,9 @@ class OwnerOrderDetailScreen extends StatelessWidget {
           bool isLast = idx == order.items.length - 1;
 
           return _buildItemRow(
-            item.menu.name,
+            item.menu.productName,
             '${item.quantity}개',
-            '${(item.menu.originalPrice * (1 - item.menu.discountRate / 100)).toInt() * item.quantity} 원',
+            '${((item.menu.productOriPrice ?? 0) * (1 - item.menu.discountRate / 100)).toInt() * item.quantity} 원',
             isLast: isLast,
           );
         }).toList(),
