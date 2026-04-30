@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -69,6 +70,7 @@ class AuthService {
     final token = await getAccessToken();
     return {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -121,6 +123,25 @@ class AuthService {
       headers: await authHeaders(),
       body: jsonEncode(body),
     );
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  // ── 프로필 이미지 업로드 ──
+  // POST /users/me/profile-image — multipart/form-data, 필드명 'image_file'
+  static Future<Map<String, dynamic>> uploadProfileImage(File imageFile) async {
+    final uri = Uri.parse('$kBaseUrl/users/me/profile-image');
+    final request = http.MultipartRequest('POST', uri);
+
+    final headers = await authHeaders();
+    headers.remove('Content-Type'); // multipart 경계자 자동 설정 위해 제거
+    request.headers.addAll(headers);
+
+    request.files.add(
+      await http.MultipartFile.fromPath('image_file', imageFile.path),
+    );
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 }

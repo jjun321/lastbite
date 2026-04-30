@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/services/store_service.dart';
+import 'package:frontend/services/owner_image_cache.dart';
+import 'package:frontend/services/naver_geocoding_service.dart';
 
 /// 1. 첫 로그인 시 가게 정보 등록 화면
 class OwnerStoreRegisterPage extends StatefulWidget {
@@ -82,7 +84,11 @@ class _OwnerStoreRegisterPageState extends State<OwnerStoreRegisterPage> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) setState(() => _storeImage = File(file.path));
+    if (file != null) {
+      setState(() => _storeImage = File(file.path));
+      // 마이페이지·계정관리 프로필 사진과 동일하게 사용하기 위해 로컬 캐시에 저장
+      await OwnerImageCache.save(file.path);
+    }
   }
 
   // ── 달력 날짜 토글 ──
@@ -414,6 +420,43 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
   NaverMapController? _mapController;
   NLatLng _center = const NLatLng(37.5665, 126.9780); // 기본: 서울시청
   String _selectedAddress = '';
+  bool _searching = false;
+
+  Future<void> _onSearch() async {
+    final q = _searchCtrl.text.trim();
+    if (q.isEmpty) return;
+    setState(() => _searching = true);
+    try {
+      final result = await NaverGeocodingService.geocode(q);
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주소를 찾을 수 없습니다.')),
+        );
+        return;
+      }
+      final lat = result['lat'] as double;
+      final lng = result['lng'] as double;
+      final address = result['address'] as String;
+      final newCenter = NLatLng(lat, lng);
+      setState(() {
+        _center = newCenter;
+        _selectedAddress = address;
+      });
+      await _mapController?.updateCamera(
+        NCameraUpdate.fromCameraPosition(
+          NCameraPosition(target: newCenter, zoom: 16),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('주소 검색 오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -436,6 +479,8 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
             Expanded(
               child: TextField(
                 controller: _searchCtrl,
+                onSubmitted: (_) => _onSearch(),
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: '주소를 검색하세요',
                   filled: true,
@@ -447,18 +492,19 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
             ),
             const SizedBox(width: 8),
             ElevatedButton(
-              onPressed: () {
-                // 현재는 더미 — 실제 구현에서 Naver Geocoding API 호출
-                setState(() {
-                  _selectedAddress = _searchCtrl.text;
-                });
-              },
+              onPressed: _searching ? null : _onSearch,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4FA75A),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              child: const Text('검색'),
+              child: _searching
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('검색'),
             ),
           ]),
         ),
