@@ -28,6 +28,7 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
 
   List<Map<String, dynamic>> _categories = [];
   int? _selectedCategoryId;
+  final _categoryCtrl = TextEditingController();
   int _count = 1;
   File? _image;
   bool _isLoading = true;
@@ -41,17 +42,27 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
     _oriCtrl = TextEditingController(text: '${p['product_ori_price'] ?? ''}');
     _disCtrl = TextEditingController(text: '${p['product_dis_price'] ?? ''}');
     _selectedCategoryId = p['category_id'] as int?;
+    _categoryCtrl.text = p['category_name'] as String? ?? '';
+    // 만약 ID가 없고 이름만 있다면 '직접 입력' 상태로 초기화
+    if (_selectedCategoryId == null && _categoryCtrl.text.isNotEmpty) {
+      _selectedCategoryId = -1;
+    }
     _count = (p['product_count'] as int?) ?? 1;
     _loadCategories();
   }
 
   Future<void> _loadCategories() async {
     final cats = await ProductService.getCategories();
-    if (mounted)
+    if (mounted) {
       setState(() {
-        _categories = cats;
+        // API 목록 뒤에 '직접 입력' 항목 추가
+        _categories = [
+          ...cats,
+          {'category_id': -1, 'category_name': '직접 입력'}
+        ];
         _isLoading = false;
       });
+    }
   }
 
   Future<void> _pickImageFromSource(ImageSource source) async {
@@ -178,6 +189,10 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
       _snack('카테고리를 선택해주세요.');
       return;
     }
+    if (_selectedCategoryId == -1 && _categoryCtrl.text.trim().isEmpty) {
+      _snack('카테고리명을 입력해주세요.');
+      return;
+    }
     if (oriText.isEmpty) {
       _snack('정가를 입력해주세요.');
       return;
@@ -236,7 +251,9 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
       final res = await ProductService.updateProduct(
         storeId: widget.storeId,
         productId: widget.product['product_id'] as int,
-        categoryId: _selectedCategoryId,
+        categoryId: _selectedCategoryId == -1 ? null : _selectedCategoryId,
+        categoryName:
+            _selectedCategoryId == -1 ? _categoryCtrl.text.trim() : null,
         productName: _nameCtrl.text.trim(),
         oriPrice: ori,
         disPrice: dis,
@@ -396,9 +413,11 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
     ),
   );
 
-  Widget _input(TextEditingController ctrl) => TextField(
+  Widget _input(TextEditingController ctrl, {String hint = ''}) => TextField(
     controller: ctrl,
     decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
       filled: true,
       fillColor: const Color(0xFFF0F4F0),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -409,11 +428,13 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
     ),
   );
 
-  Widget _numInput(TextEditingController ctrl) => TextField(
+  Widget _numInput(TextEditingController ctrl, {String hint = ''}) => TextField(
     controller: ctrl,
     keyboardType: TextInputType.number,
     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
     decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
       filled: true,
       fillColor: const Color(0xFFF0F4F0),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -424,36 +445,47 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
     ),
   );
 
-  Widget _dropdownCategory() => Container(
-    height: 50,
-    decoration: BoxDecoration(
-      color: const Color(0xFFF0F4F0),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<int>(
-        value: _selectedCategoryId,
-        isExpanded: true,
-        hint: const Text(
-          '카테고리 선택',
-          style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+  Widget _dropdownCategory() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F4F0),
+          borderRadius: BorderRadius.circular(12),
         ),
-        icon: const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: Color(0xFF666666),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<int>(
+            value: (_categories.any((c) => c['category_id'] == _selectedCategoryId))
+                ? _selectedCategoryId
+                : null,
+            isExpanded: true,
+            hint: const Text(
+              '카테고리 선택',
+              style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+            ),
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF666666),
+            ),
+            items: _categories
+                .map<DropdownMenuItem<int>>(
+                  (c) => DropdownMenuItem(
+                    value: c['category_id'] as int,
+                    child: Text(c['category_name'] as String),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) => setState(() => _selectedCategoryId = v),
+          ),
         ),
-        items: _categories
-            .map<DropdownMenuItem<int>>(
-              (c) => DropdownMenuItem(
-                value: c['category_id'] as int,
-                child: Text(c['category_name'] as String),
-              ),
-            )
-            .toList(),
-        onChanged: (v) => setState(() => _selectedCategoryId = v),
       ),
-    ),
+      if (_selectedCategoryId == -1) ...[
+        const SizedBox(height: 12),
+        _input(_categoryCtrl, hint: '새로운 카테고리명을 입력하세요'),
+      ],
+    ],
   );
 
   Widget _counter() => Container(

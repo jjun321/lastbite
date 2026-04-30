@@ -113,11 +113,16 @@ class _OwnerStoreRegisterPageState extends State<OwnerStoreRegisterPage> {
           .map((d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}')
           .toList();
 
+      // 백엔드 store_long: DecimalField(max_digits=9, decimal_places=6) 제약
+      // → 소수점 6자리로 반올림해서 전송
+      double? round6(double? v) =>
+          v == null ? null : double.parse(v.toStringAsFixed(6));
+
       final res = await StoreService.registerStore(
         storeName:    _nameController.text.trim(),
         storeAddress: '${_addressController.text.trim()} ${_address2Controller.text.trim()}'.trim(),
-        storeLat:     _storeLat,
-        storeLong:    _storeLong,
+        storeLat:     round6(_storeLat),
+        storeLong:    round6(_storeLong),
         storeDesc:    _descController.text.trim(),
         openTime:     _fmt(_openTime),
         closeTime:    _fmt(_closeTime),

@@ -44,8 +44,12 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
       );
       if (mounted) {
         setState(() {
-          _categories = cats;
-          _categoryLoadFailed = cats.isEmpty;
+          // API 성공 시 목록 뒤에 '직접 입력' 추가
+          _categories = [
+            ...cats,
+            {'category_id': -1, 'category_name': '직접 입력'}
+          ];
+          _categoryLoadFailed = false;
           _isLoading = false;
         });
       }
@@ -238,8 +242,9 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
       _snack('카테고리를 선택해주세요.');
       return;
     }
-    if (_categoryLoadFailed && _categoryCtrl.text.trim().isEmpty) {
-      _snack('카테고리를 입력해주세요.');
+    if ((_categoryLoadFailed || _selectedCategoryId == -1) &&
+        _categoryCtrl.text.trim().isEmpty) {
+      _snack('카테고리명을 입력해주세요.');
       return;
     }
     if (ori <= 0) {
@@ -255,8 +260,12 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
     try {
       final res = await ProductService.createProduct(
         storeId: widget.storeId,
-        categoryId: _categoryLoadFailed ? null : _selectedCategoryId,
-        categoryName: _categoryLoadFailed ? _categoryCtrl.text.trim() : null,
+        categoryId: (_categoryLoadFailed || _selectedCategoryId == -1)
+            ? null
+            : _selectedCategoryId,
+        categoryName: (_categoryLoadFailed || _selectedCategoryId == -1)
+            ? _categoryCtrl.text.trim()
+            : null,
         productName: name,
         oriPrice: ori,
         disPrice: dis,
@@ -471,36 +480,47 @@ class _OwnerProductRegisterPageState extends State<OwnerProductRegisterPage> {
         ],
       );
     }
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F4F0),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: _selectedCategoryId,
-          isExpanded: true,
-          hint: const Text(
-            '카테고리를 선택하세요',
-            style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F4F0),
+            borderRadius: BorderRadius.circular(12),
           ),
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF666666),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: (_categories.any((c) => c['category_id'] == _selectedCategoryId))
+                ? _selectedCategoryId
+                : null,
+              isExpanded: true,
+              hint: const Text(
+                '카테고리를 선택하세요',
+                style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+              ),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF666666),
+              ),
+              items: _categories
+                  .map<DropdownMenuItem<int>>(
+                    (c) => DropdownMenuItem(
+                      value: c['category_id'] as int,
+                      child: Text(c['category_name'] as String),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedCategoryId = v),
+            ),
           ),
-          items: _categories
-              .map<DropdownMenuItem<int>>(
-                (c) => DropdownMenuItem(
-                  value: c['category_id'] as int,
-                  child: Text(c['category_name'] as String),
-                ),
-              )
-              .toList(),
-          onChanged: (v) => setState(() => _selectedCategoryId = v),
         ),
-      ),
+        if (_selectedCategoryId == -1) ...[
+          const SizedBox(height: 12),
+          _input(_categoryCtrl, hint: '새로운 카테고리명을 입력하세요'),
+        ],
+      ],
     );
   }
 
