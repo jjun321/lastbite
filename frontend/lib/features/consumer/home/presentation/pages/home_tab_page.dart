@@ -30,7 +30,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
   bool _isLoadingLocation = false;
 
   /// 현재 선택된 거리 필터 (km 단위, 0 = 필터 없음)
-  int _filterDistance = 3; // 기본 반경 3km
+  int _filterDistance = 300; // 기본 반경 3km
 
   @override
   void initState() {
@@ -99,8 +99,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
       // 현재 위치 가져오기
       final position = await Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
 
       setState(() {
@@ -136,8 +137,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
       final label = result == 0
           ? '전체'
           : result >= 1000
-              ? '${result ~/ 1000}km'
-              : '${result}m';
+          ? '${result ~/ 1000}km'
+          : '${result}m';
       if (mounted) _showSnackBar('반경 $label 내 가게를 표시합니다.');
     }
   }
@@ -188,27 +189,30 @@ class _HomeTabPageState extends State<HomeTabPage> {
           child: _isLoadingStores
               ? const Center(child: CircularProgressIndicator())
               : _storeError != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 48, color: Colors.red),
-                          const SizedBox(height: 12),
-                          Text(_storeError!),
-                          TextButton(
-                            onPressed: () => _fetchStores(
-                              lat: _currentPosition?.latitude,
-                              lon: _currentPosition?.longitude,
-                            ),
-                            child: const Text('다시 시도'),
-                          ),
-                        ],
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
                       ),
-                    )
-                  : _isListView
-                      ? _buildListView()
-                      : _buildMapView(),
+                      const SizedBox(height: 12),
+                      Text(_storeError!),
+                      TextButton(
+                        onPressed: () => _fetchStores(
+                          lat: _currentPosition?.latitude,
+                          lon: _currentPosition?.longitude,
+                        ),
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                )
+              : _isListView
+              ? _buildListView()
+              : _buildMapView(),
         ),
       ],
     );
