@@ -4,7 +4,7 @@ import math
 from django.conf import settings
 from django.db import transaction
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 
@@ -66,8 +66,8 @@ class PostListView(APIView):
             return error_response(message= "lat/long 값이 올바르지 않습니다.")
 
         try:
-            radius = float(request.query_params.get('radius', DEFAULT_RADIUS_KM))
-            radius = radius / 1000.0  # km 단위로 변환
+            radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
+            #radius = radius / 1000.0  # km 단위로 변환
         except ValueError:
             return error_response(message="radius 값이 올바르지 않습니다.")
 
