@@ -3,6 +3,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/services/store_service.dart';
+import 'package:frontend/services/owner_image_cache.dart';
 
 // 가게 정보 수정 화면
 class OwnerStoreEditPage extends StatefulWidget {
@@ -36,6 +37,15 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
   void initState() {
     super.initState();
     _loadStore();
+    _loadCachedImage();
+  }
+
+  // 로컬 캐시에 저장된 매장 이미지 불러오기 (마이페이지·계정관리와 공유)
+  Future<void> _loadCachedImage() async {
+    final cached = await OwnerImageCache.load();
+    if (cached != null && mounted) {
+      setState(() => _storeImage = cached);
+    }
   }
 
   Future<void> _loadStore() async {
@@ -121,7 +131,11 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-    if (file != null) setState(() => _storeImage = File(file.path));
+    if (file != null) {
+      setState(() => _storeImage = File(file.path));
+      // 마이페이지·계정관리 프로필 사진과 동일하게 사용하기 위해 로컬 캐시에 저장
+      await OwnerImageCache.save(file.path);
+    }
   }
 
   void _toggleDate(DateTime d) {

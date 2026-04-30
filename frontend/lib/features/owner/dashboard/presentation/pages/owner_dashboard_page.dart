@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/data/mock_data.dart';
 import 'package:frontend/data/models.dart';
+import 'package:frontend/features/owner/dashboard/data/owner_dashboard_service.dart';
 import 'package:frontend/features/owner/order_manage/presentation/pages/owner_order_detail_page.dart';
 import 'package:frontend/features/owner/order_manage/presentation/pages/owner_order_management_screen.dart';
 import 'package:frontend/features/owner/dashboard/presentation/widgets/owner_bottom_nav_bar.dart';
@@ -9,14 +10,17 @@ import 'package:frontend/features/owner/sales/presentation/pages/owner_sales_pag
 
 // 점주 대시보드 페이지
 class OwnerDashboardScreen extends StatefulWidget {
-  const OwnerDashboardScreen({Key? key}) : super(key: key);
+  final int initialTabIndex;
+
+  const OwnerDashboardScreen({Key? key, this.initialTabIndex = 0})
+    : super(key: key);
 
   @override
   State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
 }
 
 class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
-  int _currentTabIndex = 0;
+  late int _currentTabIndex = widget.initialTabIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -409,74 +413,99 @@ class _NotificationPlaceholderState extends State<_NotificationPlaceholder> {
 }
 
 /// --- 홈 탭 콘텐츠 위젯 ---
-class _OwnerDashboardHome extends StatelessWidget {
+class _OwnerDashboardHome extends StatefulWidget {
   const _OwnerDashboardHome();
 
   @override
+  State<_OwnerDashboardHome> createState() => _OwnerDashboardHomeState();
+}
+
+class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
+  OwnerDashboardData? _data;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final data = await OwnerDashboardService.fetch();
+    if (!mounted) return;
+    setState(() {
+      _data = data;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 1. 들어온 주문 수: 수락X, 취소X 인 상태
-    final int incomingCount = orderList
-        .where((o) => !o.isAccepted && !o.isCancelled)
-        .length;
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF4FA55B)),
+      );
+    }
 
-    // 2. 판매완료 주문 수: 수락O 또는 취소O 인 상태 (주문 내역으로 넘어간 모든 주문)
-    final int completedCount = orderList
-        .where((o) => o.isAccepted || o.isCancelled)
-        .length;
+    final storeName = _data?.storeName ?? '';
+    final totalSales = _data?.totalSales ?? '0';
+    final incomingCount = _data?.incomingCount ?? 0;
+    final completedCount = _data?.completedCount ?? 0;
+    final bestSellers = _data?.bestSellers ?? const <String>[];
+    final worstSellers = _data?.worstSellers ?? const <String>[];
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. 상단 매출 카드
-          _buildSalesCard(myStoreStats.storeName, myStoreStats.totalSales),
+    return RefreshIndicator(
+      color: const Color(0xFF4FA55B),
+      onRefresh: _load,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. 상단 매출 카드
+            _buildSalesCard(storeName, totalSales),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // 2. 주문 상태 버튼 세트
-          _buildOrderStatButtons(context, incomingCount, completedCount),
+            // 2. 주문 상태 버튼 세트
+            _buildOrderStatButtons(context, incomingCount, completedCount),
 
-          const SizedBox(height: 32),
+            const SizedBox(height: 32),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              '우리 매장에서 팔린 할인상품들이에요',
-              style: TextStyle(
-                fontFamily: 'Sen',
-                fontSize: 16,
-                color: Color(0xFF181C2E),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                '우리 매장에서 팔린 할인상품들이에요',
+                style: TextStyle(
+                  fontFamily: 'Sen',
+                  fontSize: 16,
+                  color: Color(0xFF181C2E),
+                ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // 4. 베스트 & 워스트 셀러 섹션
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildRankingSection(
-                    '인기 상품',
-                    myStoreStats.bestSellers,
+            // 4. 베스트 & 워스트 셀러 섹션
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildRankingSection('인기 상품', bestSellers),
                   ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildRankingSection(
-                    '비인기 상품',
-                    myStoreStats.worstSellers,
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildRankingSection('비인기 상품', worstSellers),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 50),
-        ],
+            const SizedBox(height: 50),
+          ],
+        ),
       ),
     );
   }

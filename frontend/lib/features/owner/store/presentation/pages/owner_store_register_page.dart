@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/services/store_service.dart';
+import 'package:frontend/services/owner_image_cache.dart';
 
 /// 1. 첫 로그인 시 가게 정보 등록 화면
 class OwnerStoreRegisterPage extends StatefulWidget {
@@ -82,7 +83,11 @@ class _OwnerStoreRegisterPageState extends State<OwnerStoreRegisterPage> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) setState(() => _storeImage = File(file.path));
+    if (file != null) {
+      setState(() => _storeImage = File(file.path));
+      // 마이페이지·계정관리 프로필 사진과 동일하게 사용하기 위해 로컬 캐시에 저장
+      await OwnerImageCache.save(file.path);
+    }
   }
 
   // ── 달력 날짜 토글 ──
