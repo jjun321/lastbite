@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/services/store_service.dart';
 import 'package:frontend/services/owner_image_cache.dart';
+import 'package:frontend/services/naver_geocoding_service.dart';
 
 /// 1. 첫 로그인 시 가게 정보 등록 화면
 class OwnerStoreRegisterPage extends StatefulWidget {
@@ -118,16 +119,11 @@ class _OwnerStoreRegisterPageState extends State<OwnerStoreRegisterPage> {
           .map((d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}')
           .toList();
 
-      // 백엔드 store_long: DecimalField(max_digits=9, decimal_places=6) 제약
-      // → 소수점 6자리로 반올림해서 전송
-      double? round6(double? v) =>
-          v == null ? null : double.parse(v.toStringAsFixed(6));
-
       final res = await StoreService.registerStore(
         storeName:    _nameController.text.trim(),
         storeAddress: '${_addressController.text.trim()} ${_address2Controller.text.trim()}'.trim(),
-        storeLat:     round6(_storeLat),
-        storeLong:    round6(_storeLong),
+        storeLat:     _storeLat,
+        storeLong:    _storeLong,
         storeDesc:    _descController.text.trim(),
         openTime:     _fmt(_openTime),
         closeTime:    _fmt(_closeTime),
@@ -424,6 +420,43 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
   NaverMapController? _mapController;
   NLatLng _center = const NLatLng(37.5665, 126.9780); // 기본: 서울시청
   String _selectedAddress = '';
+  bool _searching = false;
+
+  Future<void> _onSearch() async {
+    final q = _searchCtrl.text.trim();
+    if (q.isEmpty) return;
+    setState(() => _searching = true);
+    try {
+      final result = await NaverGeocodingService.geocode(q);
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주소를 찾을 수 없습니다.')),
+        );
+        return;
+      }
+      final lat = result['lat'] as double;
+      final lng = result['lng'] as double;
+      final address = result['address'] as String;
+      final newCenter = NLatLng(lat, lng);
+      setState(() {
+        _center = newCenter;
+        _selectedAddress = address;
+      });
+      await _mapController?.updateCamera(
+        NCameraUpdate.fromCameraPosition(
+          NCameraPosition(target: newCenter, zoom: 16),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('주소 검색 오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -446,6 +479,8 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
             Expanded(
               child: TextField(
                 controller: _searchCtrl,
+                onSubmitted: (_) => _onSearch(),
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: '주소를 검색하세요',
                   filled: true,
@@ -457,18 +492,19 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
             ),
             const SizedBox(width: 8),
             ElevatedButton(
-              onPressed: () {
-                // 현재는 더미 — 실제 구현에서 Naver Geocoding API 호출
-                setState(() {
-                  _selectedAddress = _searchCtrl.text;
-                });
-              },
+              onPressed: _searching ? null : _onSearch,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4FA75A),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              child: const Text('검색'),
+              child: _searching
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('검색'),
             ),
           ]),
         ),

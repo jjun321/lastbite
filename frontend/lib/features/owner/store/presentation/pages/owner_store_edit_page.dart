@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/services/store_service.dart';
 import 'package:frontend/services/owner_image_cache.dart';
+import 'package:frontend/services/naver_geocoding_service.dart';
 
 // 가게 정보 수정 화면
 class OwnerStoreEditPage extends StatefulWidget {
@@ -165,19 +166,14 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
           )
           .toList();
 
-      // 백엔드 store_long: DecimalField(max_digits=9, decimal_places=6) 제약
-      // → 소수점 6자리로 반올림해서 전송
-      double? round6(double? v) =>
-          v == null ? null : double.parse(v.toStringAsFixed(6));
-
       final res = await StoreService.updateStore(
         storeId: _storeId!,
         storeName: _nameController.text.trim(),
         storeAddress:
             '${_addressController.text.trim()} ${_address2Controller.text.trim()}'
                 .trim(),
-        storeLat: round6(_storeLat),
-        storeLong: round6(_storeLong),
+        storeLat: _storeLat,
+        storeLong: _storeLong,
         storeDesc: _descController.text.trim(),
         openTime: _fmt(_openTime),
         closeTime: _fmt(_closeTime),
@@ -591,7 +587,6 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
 }
 
 //Naver Map 주소 검색 시트 (공유)
-// TODO: 네이버 지도 기반 API 선택 구현
 class _NaverMapSearchSheet extends StatefulWidget {
   final Function(String address, double lat, double lng) onAddressSelected;
   const _NaverMapSearchSheet({required this.onAddressSelected});
@@ -604,6 +599,43 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
   NLatLng _center = const NLatLng(37.5665, 126.9780);
   String _selectedAddress = '';
   NaverMapController? _mapCtrl;
+  bool _searching = false;
+
+  Future<void> _onSearch() async {
+    final q = _ctrl.text.trim();
+    if (q.isEmpty) return;
+    setState(() => _searching = true);
+    try {
+      final result = await NaverGeocodingService.geocode(q);
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주소를 찾을 수 없습니다.')),
+        );
+        return;
+      }
+      final lat = result['lat'] as double;
+      final lng = result['lng'] as double;
+      final address = result['address'] as String;
+      final newCenter = NLatLng(lat, lng);
+      setState(() {
+        _center = newCenter;
+        _selectedAddress = address;
+      });
+      await _mapCtrl?.updateCamera(
+        NCameraUpdate.fromCameraPosition(
+          NCameraPosition(target: newCenter, zoom: 16),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('주소 검색 오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -632,6 +664,8 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
                 Expanded(
                   child: TextField(
                     controller: _ctrl,
+                    onSubmitted: (_) => _onSearch(),
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: '주소를 검색하세요',
                       filled: true,
@@ -649,8 +683,7 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () =>
-                      setState(() => _selectedAddress = _ctrl.text),
+                  onPressed: _searching ? null : _onSearch,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4FA75A),
                     shape: RoundedRectangleBorder(
@@ -661,7 +694,16 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
                       vertical: 12,
                     ),
                   ),
-                  child: const Text('검색'),
+                  child: _searching
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('검색'),
                 ),
               ],
             ),
