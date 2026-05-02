@@ -1,35 +1,59 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/data/mock_data.dart';
-import 'package:frontend/data/models.dart';
+import 'package:frontend/features/owner/order_manage/data/models/owner_order_model.dart';
+import 'package:frontend/services/order_service.dart';
 import 'owner_order_detail_page.dart';
-
-// 점주 주문 접수/ 주문 내역 페이지
 
 class OwnerOrderManagementScreen extends StatefulWidget {
   final bool initialHistoryMode;
-  const OwnerOrderManagementScreen({Key? key, this.initialHistoryMode = false})
-    : super(key: key);
+  const OwnerOrderManagementScreen({Key? key, this.initialHistoryMode = false}) : super(key: key);
 
   @override
-  State<OwnerOrderManagementScreen> createState() =>
-      _OwnerOrderManagementScreenState();
+  State<OwnerOrderManagementScreen> createState() => _OwnerOrderManagementScreenState();
 }
 
-class _OwnerOrderManagementScreenState
-    extends State<OwnerOrderManagementScreen> {
+class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen> {
   late bool isHistoryMode;
+  final OrderService _orderService = OrderService();
+  List<OwnerOrderModel> _orders = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     isHistoryMode = widget.initialHistoryMode;
+    _fetchData();
+  }
+
+  // ISO8601 시간을 보기 좋게 변환하는 헬퍼 함수
+  String formatPickupTime(String timeStr) {
+    try {
+      DateTime dt = DateTime.parse(timeStr);
+      return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} "
+          "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return timeStr;
+    }
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    try {
+      List<OwnerOrderModel> result = isHistoryMode
+          ? await _orderService.fetchHistory()
+          : await _orderService.fetchOrders();
+      setState(() => _orders = result);
+    } catch (e) {
+      debugPrint("데이터 로딩 오류: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showConfirmDialog({
     required BuildContext context,
     required String title,
     required Color actionColor,
-    required Order order,
+    required OwnerOrderModel order,
     required bool toAccepted,
   }) {
     showDialog(
@@ -43,50 +67,24 @@ class _OwnerOrderManagementScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: Color(0xFF676C5A),
-                ),
-              ),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 40),
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (toAccepted) {
-                            order.isAccepted = true;
-                            order.isCancelled = false;
-                          } else {
-                            order.isAccepted = false;
-                            order.isCancelled = true;
-                          }
-                          isHistoryMode = true;
-                        });
+                      onTap: () async {
                         Navigator.pop(context);
+                        bool success = toAccepted
+                            ? await _orderService.acceptOrder(order.orderId)
+                            : await _orderService.cancelOrder(order.orderId);
+                        if (success) _fetchData();
                       },
                       child: Container(
                         height: 37,
-                        decoration: BoxDecoration(
-                          color: actionColor,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
+                        decoration: BoxDecoration(color: actionColor, borderRadius: BorderRadius.circular(30)),
                         alignment: Alignment.center,
-                        child: const Text(
-                          '예',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: const Text('예', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ),
@@ -96,21 +94,9 @@ class _OwnerOrderManagementScreenState
                       onTap: () => Navigator.pop(context),
                       child: Container(
                         height: 37,
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          border: Border.all(color: const Color(0xFFB3BA9F)),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
+                        decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB3BA9F)), borderRadius: BorderRadius.circular(30)),
                         alignment: Alignment.center,
-                        child: const Text(
-                          '아니오',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                            color: Color(0xFFB3BA9F),
-                          ),
-                        ),
+                        child: const Text('아니오', style: TextStyle(color: Color(0xFFB3BA9F))),
                       ),
                     ),
                   ),
@@ -125,10 +111,6 @@ class _OwnerOrderManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    final List<Order> displayList = isHistoryMode
-        ? orderList.where((o) => o.isAccepted || o.isCancelled).toList()
-        : orderList.where((o) => !o.isAccepted && !o.isCancelled).toList();
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -137,35 +119,29 @@ class _OwnerOrderManagementScreenState
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(
           isHistoryMode ? '주문 내역' : '주문 접수',
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
       body: Column(
         children: [
           _buildTabButtons(),
           Expanded(
-            child: displayList.isEmpty
-                ? const Center(
-                    child: Text(
-                      '주문이 없습니다.',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: displayList.length,
-                    itemBuilder: (context, index) {
-                      return _buildOrderCard(displayList[index]);
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4FA55B)))
+                : RefreshIndicator(
+              onRefresh: _fetchData,
+              child: _orders.isEmpty
+                  ? const Center(child: Text('주문 내역이 없습니다.'))
+                  : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: _orders.length,
+                itemBuilder: (context, index) => _buildOrderCard(_orders[index]),
+              ),
+            ),
           ),
         ],
       ),
@@ -177,21 +153,19 @@ class _OwnerOrderManagementScreenState
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
       child: Row(
         children: [
-          Expanded(
-            child: _buildTabItem(
-              "들어온 주문",
-              !isHistoryMode,
-              () => setState(() => isHistoryMode = false),
-            ),
-          ),
+          Expanded(child: _buildTabItem("들어온 주문", !isHistoryMode, () {
+            if (isHistoryMode) {
+              setState(() => isHistoryMode = false);
+              _fetchData();
+            }
+          })),
           const SizedBox(width: 16),
-          Expanded(
-            child: _buildTabItem(
-              "주문 내역",
-              isHistoryMode,
-              () => setState(() => isHistoryMode = true),
-            ),
-          ),
+          Expanded(child: _buildTabItem("주문 내역", isHistoryMode, () {
+            if (!isHistoryMode) {
+              setState(() => isHistoryMode = true);
+              _fetchData();
+            }
+          })),
         ],
       ),
     );
@@ -205,166 +179,72 @@ class _OwnerOrderManagementScreenState
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFFEAFBF0) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isActive ? const Color(0xFF4FA55B) : const Color(0xFFE4E4E4),
-          ),
+          border: Border.all(color: isActive ? const Color(0xFF4FA55B) : const Color(0xFFE4E4E4)),
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isActive ? const Color(0xFF4FA55B) : const Color(0xFF1E1E1E),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: Text(label, style: TextStyle(color: isActive ? const Color(0xFF4FA55B) : const Color(0xFF1E1E1E), fontWeight: FontWeight.w600)),
       ),
     );
   }
 
-  Widget _buildOrderCard(Order order) {
+  Widget _buildOrderCard(OwnerOrderModel order) {
+    String statusText = '';
+    Color statusColor = const Color(0xFF6B6E82);
+
+    switch (order.orderStatus) {
+      case 'S02': statusText = '수락됨'; statusColor = const Color(0xFF4FA55B); break;
+      case 'S03': statusText = '완료됨'; statusColor = const Color(0xFF4FA55B); break;
+      case 'S04': statusText = '취소됨'; statusColor = const Color(0xFFFF0000); break;
+      default: statusText = '대기중'; statusColor = const Color(0xFF6B6E82);
+    }
+
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OwnerOrderDetailScreen(order: order),
-          ),
-        ).then((_) {
-          setState(() {}); // 상세에서 돌아오면 상태 반영
-        });
-      },
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => OwnerOrderDetailScreen(orderId: order.orderId)),
+      ).then((_) => _fetchData()),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
-          border: Border(top: BorderSide(color: Color(0xFFEEF2F6))),
-        ),
+        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFEEF2F6)))),
         child: Column(
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF98A8B8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(color: const Color(0xFF98A8B8), borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.shopping_bag_outlined, color: Colors.white),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Flexible(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              order.representativeName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: Color(0xFF181C2E),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${order.totalCountString} | ${order.price}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: Color(0xFF181C2E),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '픽업: ${order.pickupTime}',
-                              style: const TextStyle(
-                                color: Color(0xFF6B6E82),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            order.orderNo,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF6B6E82),
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          if (order.isCancelled)
-                            const Text(
-                              '취소됨',
-                              style: TextStyle(
-                                color: Color(0xFFD63030),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            )
-                          else if (order.isAccepted)
-                            const Text(
-                              '수락됨',
-                              style: TextStyle(
-                                color: Color(0xFF4FA55B),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
+                          Text(order.buyerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
                       ),
+                      Text('${order.itemSummary} | ${order.totalPrice}원', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      // 시간 포맷 적용 부분
+                      Text('픽업: ${formatPickupTime(order.pickupDt)}', style: const TextStyle(color: Color(0xFF6B6E82), fontSize: 12)),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _buildActionButton(
-                  order.isAccepted && !order.isCancelled ? '수락됨' : '주문 수락',
-                  order.isAccepted && !order.isCancelled
-                      ? const Color(0xFFB3BA9F)
-                      : const Color(0xFF4FA55B),
-                  () {
-                    if (order.isAccepted && !order.isCancelled) return;
-                    _showConfirmDialog(
-                      context: context,
-                      title: '이 주문을 수락하시겠습니까?',
-                      actionColor: const Color(0xFF4FA55B),
-                      order: order,
-                      toAccepted: true,
-                    );
-                  },
-                ),
-                const SizedBox(width: 12),
-                _buildActionButton(
-                  order.isCancelled ? '취소됨' : '주문 취소',
-                  order.isCancelled
-                      ? const Color(0xFFB3BA9F)
-                      : const Color(0xFFD63030),
-                  () {
-                    if (order.isCancelled) return;
-                    _showConfirmDialog(
-                      context: context,
-                      title: '이 주문을 취소하시겠습니까?',
-                      actionColor: const Color(0xFFD63030),
-                      order: order,
-                      toAccepted: false,
-                    );
-                  },
-                ),
-              ],
-            ),
+            if (order.orderStatus != 'S03') ...[
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  _buildActionButton('주문 수락', order.orderStatus == 'S02' ? const Color(0xFFB3BA9F) : const Color(0xFF4FA55B), () => _showConfirmDialog(context: context, title: '주문을 수락하시겠습니까?', actionColor: const Color(0xFF4FA55B), order: order, toAccepted: true)),
+                  const SizedBox(width: 12),
+                  _buildActionButton('주문 취소', order.orderStatus == 'S04' ? const Color(0xFFB3BA9F) : const Color(0xFFD63030), () => _showConfirmDialog(context: context, title: '주문을 취소하시겠습니까?', actionColor: const Color(0xFFD63030), order: order, toAccepted: false)),
+                ],
+              ),
+            ]
           ],
         ),
       ),
@@ -377,19 +257,9 @@ class _OwnerOrderManagementScreenState
         onTap: onTap,
         child: Container(
           height: 38,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8),
-          ),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
+          child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
         ),
       ),
     );
