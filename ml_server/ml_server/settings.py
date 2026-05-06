@@ -88,3 +88,9 @@ IF_CONTAMINATION = 0.1   # 이상치 비율 (전체 데이터의 10% 이상치�
 IF_N_ESTIMATORS  = 100   # 트리 개수
 IF_RANDOM_STATE  = 42    # 재현성 보장
 IF_MIN_SAMPLES   = 5     # 학습 최소 데이터 수 (미만이면 탐지 생략)
+
+# ── 연관 규칙 파라미터 ────────────────────────────────────────────────────────
+AR_MIN_SUPPORT    = 0.05   # FP-Growth 최소 지지도 (전체 사용자 중 5% 이상)
+AR_MIN_CONFIDENCE = 0.3    # 연관 규칙 최소 신뢰도 30%
+AR_BOOST_WEIGHT   = 0.15   # DBSCAN 결과 boost 가산점
+AR_POPULARITY_TOP = 10     # 인기도 폴백 반환 수

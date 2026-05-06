@@ -59,3 +59,60 @@ class Product(models.Model):
     class Meta:
         managed = False
         db_table = "product"
+
+class Order(models.Model):
+    """
+    backend/order/models/order.py 의 order 테이블 참조.
+    연관 규칙 / 인기도 폴백에 필요한 필드만 선언.
+    """
+    order_id     = models.BigAutoField(primary_key=True, db_column="order_id")
+    store_id     = models.BigIntegerField(db_column="store_id")
+    user_id      = models.BigIntegerField(db_column="user_id")
+    order_status = models.CharField(max_length=10, db_column="order_status")
+    reg_dt       = models.DateTimeField(db_column="reg_dt")
+
+    class Meta:
+        managed  = False
+        db_table = "order"
+
+
+class OrderItem(models.Model):
+    """
+    backend/order/models/orderProdList.py 의 order_item 테이블 참조.
+    """
+    id               = models.BigAutoField(primary_key=True)
+    order_id         = models.BigIntegerField(db_column="order_id")
+    product_id       = models.BigIntegerField(db_column="product_id")
+    order_prod_count = models.SmallIntegerField(db_column="order_prod_count")
+
+    class Meta:
+        managed  = False
+        db_table = "order_item"
+
+
+class ProductCategory(models.Model):
+    """
+    연관 규칙에서 product → category 조회용.
+    """
+    product_id  = models.BigAutoField(primary_key=True, db_column="product_id")
+    store_id    = models.BigIntegerField(db_column="store_id")
+    category_id = models.BigIntegerField(db_column="category_id")
+    is_deleted  = models.BooleanField(db_column="is_deleted")
+
+    class Meta:
+        managed  = False
+        db_table = "product"
+
+
+class Favorite(models.Model):
+    """
+    backend/store/models/favorite.py 의 favorite 테이블 참조.
+    인기도 폴백에서 즐겨찾기 수 집계용.
+    """
+    id       = models.BigAutoField(primary_key=True)
+    user_id  = models.BigIntegerField(db_column="user_id")
+    store_id = models.BigIntegerField(db_column="store_id")
+
+    class Meta:
+        managed  = False
+        db_table = "favorite"

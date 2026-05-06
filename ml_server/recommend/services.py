@@ -22,7 +22,11 @@ from django.utils import timezone
 from sklearn.cluster import DBSCAN
 
 from recommend.models import LocationLog, Store, Product
-
+from recommend.services_association import (
+    boost_by_association,
+    recommend_by_association,
+    recommend_by_popularity,
+)
 
 # ── 설정값 로드 ───────────────────────────────────────────────────────────────
 ALPHA = getattr(settings, "RECOMMEND_ALPHA", 0.5)
@@ -141,6 +145,12 @@ def _fetch_stores_near(clat: float, clon: float) -> list[dict]:
 
 def get_recommendations(user_id: int, top_n: int = 10) -> list[dict]:
     """
+    3단계 추천 파이프라인
+
+    1단계: DBSCAN 군집화 → 성공 시 연관 규칙 boost 후 반환
+    2단계: 연관 규칙 폴백 → 주문 이력 있으면 카테고리 연관 매장 반환
+    3단계: 인기도 폴백   → 완전 신규 사용자에게 인기 매장 반환
+
     Args:
         user_id: 추천 대상 유저 PK
         top_n:   반환할 최대 추천 매장 수
@@ -148,58 +158,59 @@ def get_recommendations(user_id: int, top_n: int = 10) -> list[dict]:
     Returns:
         score 내림차순으로 정렬된 추천 매장 리스트
     """
-    # 1. 위치 로그 조회
+
+    # ── 1단계: DBSCAN 군집화 ──────────────────────────────────────────────────
     logs = fetch_location_logs(user_id, days=7)
-    if len(logs) < DBSCAN_MIN_SAMPLES:
-        return []
 
-    # 2. DBSCAN 군집화
-    coords_rad = np.radians([[l["lat"], l["lon"]] for l in logs])
-    labels = DBSCAN(
-        eps=DBSCAN_EPS_RAD,
-        min_samples=DBSCAN_MIN_SAMPLES,
-        algorithm="ball_tree",
-        metric="haversine",
-    ).fit(coords_rad).labels_
+    if len(logs) >= DBSCAN_MIN_SAMPLES:
+        coords_rad = np.radians([[l["lat"], l["lon"]] for l in logs])
+        labels = DBSCAN(
+            eps=DBSCAN_EPS_RAD,
+            min_samples=DBSCAN_MIN_SAMPLES,
+            algorithm="ball_tree",
+            metric="haversine",
+        ).fit(coords_rad).labels_
 
-    centroids = _get_centroids(coords_rad, labels)
-    if not centroids:
-        return []
+        centroids = _get_centroids(coords_rad, labels)
 
-    # 3. 군집 중심별 반경 내 매장 수집 (중복 제거)
-    seen_ids, candidates = set(), []
-    for c in centroids:
-        for store in _fetch_stores_near(c["lat"], c["lon"]):
-            if store["store_id"] not in seen_ids:
-                seen_ids.add(store["store_id"])
-                candidates.append(store)
+        if centroids:
+            seen_ids, candidates = set(), []
+            for c in centroids:
+                for store in _fetch_stores_near(c["lat"], c["lon"]):
+                    if store["store_id"] not in seen_ids:
+                        seen_ids.add(store["store_id"])
+                        candidates.append(store)
 
-    if not candidates:
-        return []
+            if candidates:
+                max_dist = max(c["dist"] for c in candidates) or 1.0
+                max_rate = max(c["best_discount_rate"] for c in candidates) or 1.0
 
-    # 4. 정규화용 최댓값
-    max_dist = max(c["dist"] for c in candidates) or 1.0
-    max_rate = max(c["best_discount_rate"] for c in candidates) or 1.0
-    # view_count 컬럼 추가 전까지 BETA 항은 0으로 처리
-    max_views = 1
+                results = []
+                for c in candidates:
+                    dist_score = max(0.0, 1.0 - c["dist"] / max_dist)
+                    rate_score = c["best_discount_rate"] / max_rate
+                    score      = ALPHA * dist_score + BETA * 0.0 + GAMMA * rate_score
+                    results.append({
+                        "store_id":           c["store_id"],
+                        "store_name":         c["store_name"],
+                        "store_address":      c["store_address"],
+                        "distance_km":        round(c["dist"], 2),
+                        "best_discount_rate": round(c["best_discount_rate"], 1),
+                        "score":              round(score, 4),
+                        "centroid_lat":       round(c["centroid_lat"], 6),
+                        "centroid_lon":       round(c["centroid_lon"], 6),
+                        "reason":             "cluster",
+                    })
 
-    # 5. 스코어 계산 및 정렬
-    results = []
-    for c in candidates:
-        dist_score = max(0.0, 1.0 - c["dist"] / max_dist)
-        rate_score = c["best_discount_rate"] / max_rate
-        score      = ALPHA * dist_score + BETA * 0.0 + GAMMA * rate_score
+                # 연관 규칙 boost 적용
+                results = boost_by_association(user_id, results)
+                results.sort(key=lambda x: x["score"], reverse=True)
+                return results[:top_n]
 
-        results.append({
-            "store_id":           c["store_id"],
-            "store_name":         c["store_name"],
-            "store_address":      c["store_address"],
-            "distance_km":        round(c["dist"], 2),
-            "best_discount_rate": round(c["best_discount_rate"], 1),
-            "score":              round(score, 4),
-            "centroid_lat":       round(c["centroid_lat"], 6),
-            "centroid_lon":       round(c["centroid_lon"], 6),
-        })
+    # ── 2단계: 연관 규칙 Cold Start 폴백 ─────────────────────────────────────
+    association_results = recommend_by_association(user_id, top_n=top_n)
+    if association_results:
+        return association_results
 
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return results[:top_n]
+    # ── 3단계: 인기도 완전 Cold Start 폴백 ───────────────────────────────────
+    return recommend_by_popularity(top_n=top_n)
