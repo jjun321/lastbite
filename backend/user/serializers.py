@@ -44,8 +44,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate_user_phone(self, value):
         # 전화번호 형식 검사
-        if not re.match(r'^010-\d{4}-\d{4}$', value):
-            raise serializers.ValidationError("전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)")
+        if not re.match(r'^\d{3}-\d{4}-\d{4}$', value) or re.match(r'^\d{3}-\d{3}-\d{4}$', value):
+            raise serializers.ValidationError("전화번호 형식이 올바르지 않습니다. (예: 123-4567-8901 or 123-456-7890)")
         return value
 
     def validate_user_password(self, value):

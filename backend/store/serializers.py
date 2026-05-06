@@ -149,7 +149,7 @@ class OwnerStoreCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         working_times = validated_data.pop('working_times', [])
         store = Store.objects.create(**validated_data)
-        working_times = [
+        working_days = [
             StoreWorkingTime(
                 store_id=store,
                 working_day=f'D{i:02d}',
@@ -157,7 +157,7 @@ class OwnerStoreCreateSerializer(serializers.ModelSerializer):
                 end_time=working_times.get('end_time')
             ) for i in range(1, 8)  # 월(D01) ~ 일(D07)
         ]
-        StoreWorkingTime.objects.bulk_create(working_times)
+        StoreWorkingTime.objects.bulk_create(working_days)
 
         return store
 
