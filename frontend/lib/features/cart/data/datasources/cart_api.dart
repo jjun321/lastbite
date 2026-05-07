@@ -37,43 +37,41 @@ class CartApi {
   }
 
   // 수량 변경
-// 1. 수량 변경 부분 수정
   Future<void> updateCartItem({required String cartItemId, required int quantity}) async {
     try {
-      // ❌ 삭제: final int id = int.parse(cartItemId);
-
-      // 📝 상세 로그 수정 (id -> cartItemId)
       print('🚀 수량 변경 시도: ID=$cartItemId, 수량=$quantity');
-      print('🔗 요청 URL: ${ApiConfig.cartItem(cartItemId)}'); // ✅ cartItemId 그대로 사용
+      print('🔗 요청 URL: ${ApiConfig.cartItem(cartItemId)}');
 
       final response = await _dio.patch(
-          ApiConfig.cartItem(cartItemId), // ✅ 수정
+          ApiConfig.cartItem(cartItemId),
           data: {'quantity': quantity}
       );
 
       print('✅ 서버 응답: ${response.data}');
     } on DioException catch (e) {
-      print('❌ 장바구니 수정 실패!');
+      // DioException 객체 e를 사용하여 로그 출력 (경고 방지)
+      print('❌ 장바구니 수정 실패: ${e.message}');
       rethrow;
     }
   }
 
-  // 2. 상품 삭제 부분 수정
+  // 상품 삭제
   Future<void> deleteCartItem(String cartItemId) async {
     try {
-      // ❌ 삭제: final int id = int.parse(cartItemId);
-      await _dio.delete(ApiConfig.cartItem(cartItemId)); // ✅ cartItemId 그대로 사용
+      await _dio.delete(ApiConfig.cartItem(cartItemId));
     } catch (e) {
       print('❌ CartApi deleteCartItem Error: $e');
       rethrow;
     }
   }
+
   // 장바구니 비우기
   Future<void> clearCart() async {
     try {
       await _dio.delete(ApiConfig.cart);
-    } catch (e) {
-      print('❌ CartApi clearCart Error: $e');
+    } catch (_) {
+      // ✅ 수정 포인트: e 대신 _를 사용하여 사용하지 않는 변수임을 명시 (Warning 해결)
+      print('❌ CartApi clearCart Error');
       rethrow;
     }
   }

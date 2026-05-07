@@ -20,6 +20,7 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // 생성 시점에 즉시 초기값 설정
     _currentOrder = widget.order;
     _loadDetailData();
   }
@@ -73,7 +74,6 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 주문번호와 일시를 상단에 간결하게 표시
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       child: Row(
@@ -141,7 +141,9 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
   }
 
   Widget _buildStoreSummary() {
-    final totalCount = _currentOrder.items?.fold(0, (sum, i) => sum! + i.quantity) ?? 0;
+    // 경고 해결: sum! -> sum (초기값 0에서 시작하므로 null일 수 없음)
+    final items = _currentOrder.items ?? [];
+    final totalCount = items.fold(0, (sum, i) => sum + i.quantity);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -154,7 +156,7 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
               Container(
                 width: 55, height: 55,
                 decoration: BoxDecoration(color: const Color(0xFFF0F0F0), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.storefront, color: Color(0xFF6B6E82)), // 아이콘 색상도 차분하게 변경
+                child: const Icon(Icons.storefront, color: Color(0xFF6B6E82)),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -185,7 +187,9 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
   }
 
   Widget _buildMenuDetailSection() {
-    if (_currentOrder.items == null || _currentOrder.items!.isEmpty) {
+    final items = _currentOrder.items;
+
+    if (items == null || items.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Center(child: Text("메뉴 상세 내역을 불러오는 중입니다.")),
@@ -195,10 +199,13 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(color: const Color(0xFFF9F9F9), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF0F0F0))),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF9F9F9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF0F0F0))),
       child: Column(
-        children: _currentOrder.items!.map((item) {
-          final isLast = item == _currentOrder.items!.last;
+        children: items.map((item) {
+          final isLast = item == items.last;
           return Column(
             children: [
               Padding(
@@ -237,7 +244,6 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
         const SizedBox(height: 8),
         _buildPriceRow('할인액', '- ${_formatPrice(_currentOrder.totalDiscount)}원', isDiscount: true),
         const SizedBox(height: 16),
-        // 할인 금액과 최종 금액 사이의 선을 제거함
         _buildPriceRow('합계', '${_formatPrice(_currentOrder.totalPrice)}원', isTotal: true),
       ],
     );
