@@ -70,7 +70,6 @@ class CartApi {
     try {
       await _dio.delete(ApiConfig.cart);
     } catch (_) {
-      // ✅ 수정 포인트: e 대신 _를 사용하여 사용하지 않는 변수임을 명시 (Warning 해결)
       print('❌ CartApi clearCart Error');
       rethrow;
     }
