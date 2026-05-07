@@ -8,19 +8,16 @@ class OrderRepositoryImpl {
   OrderRepositoryImpl() : _api = OrderApi(ApiClient().dio);
 
   Future<List<OrderModel>> getOrders() async {
-    try {
-      // 서버에서 데이터를 가져와서 바로 반환합니다.
-      return await _api.getOrders();
-    } catch (e) {
-      // 에러 로그
-      print('❌ 주문 내역 로드 실패: $e');
-      rethrow;
-    }
+    return await _api.getOrders();
   }
 
-  // 나머지 상세 조회, 생성, 취소 로직은 그대로 유지
   Future<OrderModel> getOrderDetail(int orderId) async {
     return await _api.getOrderDetail(orderId);
+  }
+
+  // ✅ 추가: 주문 상품 상세 정보 가져오기
+  Future<OrderItemModel> getOrderItemDetail(int orderId, int productId) async {
+    return await _api.getOrderItemDetail(orderId, productId);
   }
 
   Future<OrderModel> createOrder({

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:frontend/features/owner/order_manage/data/models/owner_order_model.dart';
 import 'package:frontend/services/order_service.dart';
-import 'package:intl/intl.dart';
 
 class OwnerOrderDetailScreen extends StatefulWidget {
-  final int orderId;
-  const OwnerOrderDetailScreen({Key? key, required this.orderId}) : super(key: key);
+  final OwnerOrderModel order;
+
+  const OwnerOrderDetailScreen({super.key, required this.order});
 
   @override
   State<OwnerOrderDetailScreen> createState() => _OwnerOrderDetailScreenState();
@@ -13,360 +14,282 @@ class OwnerOrderDetailScreen extends StatefulWidget {
 
 class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
   final OrderService _orderService = OrderService();
-  OwnerOrderModel? _orderDetail;
+  late OwnerOrderModel _currentOrder;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchDetail();
+    _currentOrder = widget.order;
+    _loadDetailData();
   }
 
-  Future<void> _fetchDetail() async {
+  Future<void> _loadDetailData() async {
+    setState(() => _isLoading = true);
     try {
-      final result = await _orderService.fetchOrderDetail(widget.orderId);
-      setState(() {
-        _orderDetail = result;
-        _isLoading = false;
-      });
+      final detailOrder = await _orderService.fetchOrderDetail(widget.order.orderId);
+      if (mounted) {
+        if (detailOrder != null) {
+          setState(() {
+            _currentOrder = detailOrder;
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
+      }
     } catch (e) {
-      debugPrint("상세정보 로딩 오류: $e");
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // 시간 포맷팅 함수 (T, Z 제거 및 가독성 향상)
-  String formatDateTime(String? dateTimeStr) {
-    if (dateTimeStr == null || dateTimeStr.isEmpty) return "-";
+  String _formatPrice(int price) =>
+      NumberFormat('###,###,###').format(price);
+
+  String _formatDate(String dateStr) {
+    if (dateStr.isEmpty) return "-";
     try {
-      DateTime dt = DateTime.parse(dateTimeStr);
-      return DateFormat('yyyy.MM.dd. hh:mm a').format(dt);
+      final dt = DateTime.parse(dateStr);
+      return DateFormat('yyyy.MM.dd HH:mm').format(dt);
     } catch (e) {
-      return dateTimeStr;
+      return dateStr;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF4FA55B))),
-      );
-    }
-
-    if (_orderDetail == null) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: Text("주문 내역을 불러올 수 없습니다.")),
-      );
-    }
-
-    final order = _orderDetail!;
-    final f = NumberFormat('#,###');
-
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leadingWidth: 76,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 31, top: 8, bottom: 8),
-          child: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFECF0F4),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new,
-                size: 16,
-                color: Color(0xFF181C2E),
-              ),
-            ),
-          ),
-        ),
-        title: const Text(
-          '주문 상세',
-          style: TextStyle(
-            fontFamily: 'Sen',
-            color: Color(0xFF181C2E),
-            fontSize: 17,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            Text(
-              formatDateTime(order.orderDt), // 주문 일시
-              style: const TextStyle(
-                fontFamily: 'Sen',
-                fontSize: 14,
-                color: Color(0xFF6B6E82),
+            _buildAppBar(context),
+            Expanded(
+              child: _isLoading && _currentOrder.items == null
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF4FA55B)))
+                  : SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 주문번호와 일시를 상단에 간결하게 표시
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '주문번호 #${_currentOrder.orderId}',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF181C2E)),
+                          ),
+                          Text(
+                            _formatDate(_currentOrder.orderDt),
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF6B6E82)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildStoreSummary(),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('주문 메뉴'),
+                    const SizedBox(height: 12),
+                    _buildMenuDetailSection(),
+                    const SizedBox(height: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: _buildPaymentSection(),
+                    ),
+                    const SizedBox(height: 32),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: Divider(height: 1, color: Color(0xFFEEF2F6)),
+                    ),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('주문자 정보'),
+                    _buildUserInfoSection(),
+                    const SizedBox(height: 100),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            _buildSectionDivider(),
-
-            _buildMenuSummary(order),
-
-            _buildDetailItemsBox(order, f),
-
-            const SizedBox(height: 30),
-            _buildPaymentSection(order, f),
-
-            const SizedBox(height: 30),
-            _buildSectionDivider(),
-
-            _buildCustomerInfoSection(order),
-            const SizedBox(height: 50),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuSummary(OwnerOrderModel order) {
+  Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.only(left: 24, right: 24, top: 32, bottom: 16),
       child: Row(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: const Color(0xFF98A8B8),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.shopping_bag_outlined, color: Colors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      order.buyerName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Color(0xFF181C2E),
-                      ),
-                    ),
-                    Text(
-                      'ID: ${order.orderId}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B6E82),
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  order.itemSummary,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF181C2E),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '픽업: ${formatDateTime(order.pickupDt)}',
-                  style: const TextStyle(
-                    color: Color(0xFF6B6E82),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 45, height: 45,
+              decoration: const BoxDecoration(color: Color(0xFFECF0F4), shape: BoxShape.circle),
+              child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF181C2E)),
             ),
           ),
+          const SizedBox(width: 16),
+          const Text('주문 상세', style: TextStyle(fontSize: 17, color: Color(0xFF181C2E), fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  Widget _buildDetailItemsBox(OwnerOrderModel order, NumberFormat f) {
-    if (order.items == null || order.items!.isEmpty) {
-      return const SizedBox.shrink();
+  Widget _buildStoreSummary() {
+    final totalCount = _currentOrder.items?.fold(0, (sum, i) => sum! + i.quantity) ?? 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          const Divider(height: 1, color: Color(0xFFEEF2F6)),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Container(
+                width: 55, height: 55,
+                decoration: BoxDecoration(color: const Color(0xFFF0F0F0), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.storefront, color: Color(0xFF6B6E82)), // 아이콘 색상도 차분하게 변경
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("주문 요약", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text('총 $totalCount개', style: const TextStyle(fontSize: 14, color: Color(0xFF181C2E))),
+                        const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('|', style: TextStyle(color: Color(0xFFCACCDA)))),
+                        Text('${_formatPrice(_currentOrder.totalPrice)}원', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text('픽업 예정: ${_formatDate(_currentOrder.pickupDt)}', style: const TextStyle(fontSize: 13, color: Color(0xFF6B6E82))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Divider(height: 1, color: Color(0xFFEEF2F6)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuDetailSection() {
+    if (_currentOrder.items == null || _currentOrder.items!.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Center(child: Text("메뉴 상세 내역을 불러오는 중입니다.")),
+      );
     }
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(color: const Color(0xFFF9F9F9), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF0F0F0))),
       child: Column(
-        children: order.items!.asMap().entries.map((entry) {
-          int idx = entry.key;
-          var item = entry.value;
-          bool isLast = idx == order.items!.length - 1;
-
-          return _buildItemRow(
-            item.productName,
-            '${item.quantity}개',
-            '${f.format(item.subtotal)} 원',
-            isLast: isLast,
+        children: _currentOrder.items!.map((item) {
+          final isLast = item == _currentOrder.items!.last;
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Text(item.productName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
+                          const SizedBox(width: 8),
+                          Text('${item.quantity}개', style: const TextStyle(fontSize: 13, color: Color(0xFF6B6E82))),
+                        ],
+                      ),
+                    ),
+                    Text('${_formatPrice(item.subtotal)}원', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF181C2E))),
+                  ],
+                ),
+              ),
+              if (!isLast) const Divider(height: 1, color: Color(0xFFEEEEEE)),
+            ],
           );
         }).toList(),
       ),
     );
   }
 
-  Widget _buildItemRow(String name, String qty, String price, {bool isLast = false}) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Color(0xFF181C2E),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 1,
-                    height: 12,
-                    color: const Color(0xFFCACCDA),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    qty,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B6E82),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                price,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  color: Color(0xFF828282),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!isLast) const Divider(height: 1, color: Color(0xFFEEF2F6)),
-      ],
-    );
-  }
-
-  Widget _buildPaymentSection(OwnerOrderModel order, NumberFormat f) {
+  Widget _buildPaymentSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '결제 금액',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Color(0xFF181C2E),
-          ),
-        ),
+        const Text('결제 금액', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF181C2E))),
         const SizedBox(height: 16),
-        _buildPriceRow('주문 금액', '${f.format(order.totalPrice)} 원'),
-        _buildPriceRow('합계', '${f.format(order.totalPrice)} 원', isTotal: true),
+        _buildPriceRow('정가', '${_formatPrice(_currentOrder.totalOriPrice)}원'),
+        const SizedBox(height: 8),
+        _buildPriceRow('할인액', '- ${_formatPrice(_currentOrder.totalDiscount)}원', isDiscount: true),
+        const SizedBox(height: 16),
+        // 할인 금액과 최종 금액 사이의 선을 제거함
+        _buildPriceRow('합계', '${_formatPrice(_currentOrder.totalPrice)}원', isTotal: true),
       ],
     );
   }
 
-  Widget _buildPriceRow(String label, String price, {bool isTotal = false}) {
+  Widget _buildUserInfoSection() {
+    final String name = _currentOrder.buyer?['user_name'] ?? _currentOrder.buyerName;
+    final String phone = _currentOrder.buyer?['user_phone'] ?? "연락처 미등록";
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF717171)),
-          ),
-          Text(
-            price,
+          _buildInfoRow('주문자', name, isBold: true),
+          const SizedBox(height: 8),
+          _buildInfoRow('연락처', phone, isBold: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF181C2E)),
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, String price, {bool isTotal = false, bool isDiscount = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Color(0xFF6B6E82))),
+        Text(price,
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: isTotal ? Colors.black : const Color(0xFF828282),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCustomerInfoSection(OwnerOrderModel order) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 20),
-        const Text(
-          '주문자 정보',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Color(0xFF181C2E),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // 서버 데이터 바인딩
-        _buildInfoRowWidget('주문자', order.buyerName),
-        _buildInfoRowWidget('주문 상태', _getStatusText(order.orderStatus)),
+                fontSize: isTotal ? 18 : 14,
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+                color: isDiscount ? Colors.red : const Color(0xFF181C2E))),
       ],
     );
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'S02': return '수락됨';
-      case 'S03': return '완료됨';
-      case 'S04': return '취소됨';
-      default: return '대기중';
-    }
-  }
-
-  Widget _buildInfoRowWidget(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF717171)),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF1E1E1E)),
-          ),
-        ],
-      ),
+  Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Color(0xFF6B6E82), fontSize: 14)),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: const Color(0xFF181C2E))),
+      ],
     );
   }
-
-  Widget _buildSectionDivider() => const Divider(height: 1, color: Color(0xFFEEF2F6));
 }

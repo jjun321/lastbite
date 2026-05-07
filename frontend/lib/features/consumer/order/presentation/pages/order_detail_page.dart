@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/order/data/models/order_model.dart';
+import 'package:frontend/features/order/data/repositories/order_repository_impl.dart';
+import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
 
-class OrderDetailScreen extends StatelessWidget {
+class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
   final bool isCancelled;
 
@@ -12,6 +14,55 @@ class OrderDetailScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  final _orderRepo = OrderRepositoryImpl();
+  final _authRepo = AuthRepositoryImpl();
+
+  late OrderModel _currentOrder;
+  String _userName = '로드 중...';
+  String _userPhone = '-';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentOrder = widget.order;
+    _loadFullData();
+  }
+
+  Future<void> _loadFullData() async {
+    setState(() => _isLoading = true);
+    try {
+      final fullOrder = await _orderRepo.getOrderDetail(widget.order.orderId);
+      final user = await _authRepo.getUser();
+
+      if (mounted) {
+        setState(() {
+          _currentOrder = fullOrder;
+          if (user != null) {
+            _userName = user.userName;
+            _userPhone = user.userPhone;
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('데이터를 불러오는 데 실패했습니다.'), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
+  String _formatPrice(int price) => price.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -20,41 +71,40 @@ class OrderDetailScreen extends StatelessWidget {
           children: [
             _buildAppBar(context),
             Expanded(
-              child: SingleChildScrollView(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF4FA55B)))
+                  : SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!isCancelled) _buildOrderNumberCard('#${order.orderId}'),
+                    if (!widget.isCancelled) _buildOrderNumberCard('#${_currentOrder.orderId}'),
                     const SizedBox(height: 16),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
-                        order.orderDt.toString().substring(0, 16),
-                        style: const TextStyle(
-                          fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82),
-                        ),
+                        _currentOrder.orderDt.toString().substring(0, 16),
+                        style: const TextStyle(fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82)),
                       ),
                     ),
                     const SizedBox(height: 16),
                     _buildStoreSummary(),
+
                     const SizedBox(height: 24),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        '주문 메뉴',
-                        style: TextStyle(
-                          fontFamily: 'Sen', fontSize: 14,
-                          fontWeight: FontWeight.w700, color: Color(0xFF181C2E),
-                        ),
-                      ),
-                    ),
+                    _buildSectionTitle('주문 메뉴'),
                     const SizedBox(height: 12),
                     _buildMenuDetailSection(),
+
                     const SizedBox(height: 32),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: _buildPaymentSection(),
                     ),
+
+                    // ✅ 주문자 정보를 결제 금액 아래로 이동
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('주문자 정보'),
+                    _buildUserInfoSection(),
+
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -62,6 +112,43 @@ class OrderDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF181C2E),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserInfoSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
+        children: [
+          _buildRow('주문자', _userName, isBold: true),
+          _buildRow('연락처', _userPhone, isBold: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRow(String label, String value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Color(0xFF6B6E82), fontSize: 14)),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+        ],
       ),
     );
   }
@@ -75,17 +162,12 @@ class OrderDetailScreen extends StatelessWidget {
             onTap: () => Navigator.pop(context),
             child: Container(
               width: 45, height: 45,
-              decoration: const BoxDecoration(
-                color: Color(0xFFECF0F4), shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: Color(0xFFECF0F4), shape: BoxShape.circle),
               child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF181C2E)),
             ),
           ),
           const SizedBox(width: 16),
-          const Text(
-            '주문 상세',
-            style: TextStyle(fontFamily: 'Sen', fontSize: 17, color: Color(0xFF181C2E)),
-          ),
+          const Text('주문 상세', style: TextStyle(fontFamily: 'Sen', fontSize: 17, color: Color(0xFF181C2E))),
         ],
       ),
     );
@@ -95,18 +177,13 @@ class OrderDetailScreen extends StatelessWidget {
     return Center(
       child: Container(
         width: 342, height: 159,
-        decoration: BoxDecoration(
-          color: const Color(0xFF4FA55B),
-          borderRadius: BorderRadius.circular(15),
-        ),
+        decoration: BoxDecoration(color: const Color(0xFF4FA55B), borderRadius: BorderRadius.circular(15)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('주문번호',
-                style: TextStyle(fontFamily: 'Sen', fontSize: 20, color: Colors.white)),
+            const Text('주문번호', style: TextStyle(fontFamily: 'Sen', fontSize: 20, color: Colors.white)),
             const SizedBox(height: 8),
-            Text(orderNo,
-                style: const TextStyle(fontFamily: 'Sen', fontSize: 36, color: Colors.white)),
+            Text(orderNo, style: const TextStyle(fontFamily: 'Sen', fontSize: 36, color: Colors.white)),
           ],
         ),
       ),
@@ -114,7 +191,7 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _buildStoreSummary() {
-    final totalCount = order.items.fold(0, (sum, i) => sum + i.quantity);
+    final totalCount = _currentOrder.items.fold(0, (sum, i) => sum + i.quantity);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -124,13 +201,7 @@ class OrderDetailScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Row(
             children: [
-              Container(
-                width: 60, height: 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF98A8B8),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+              Container(width: 60, height: 60, decoration: BoxDecoration(color: const Color(0xFF98A8B8), borderRadius: BorderRadius.circular(8))),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -139,34 +210,20 @@ class OrderDetailScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(order.storeName,
-                            style: const TextStyle(
-                                fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700)),
-                        Text('#${order.orderId}',
-                            style: const TextStyle(
-                                fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82),
-                                decoration: TextDecoration.underline)),
+                        Text(_currentOrder.storeName, style: const TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text('#${_currentOrder.orderId}', style: const TextStyle(fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82), decoration: TextDecoration.underline)),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('총 $totalCount개',
-                            style: const TextStyle(
-                                fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700)),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
-                        ),
-                        Text('${order.totalPrice}원',
-                            style: const TextStyle(
-                                fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text('총 $totalCount개', style: const TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700)),
+                        const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('|', style: TextStyle(color: Color(0xFFCACCDA)))),
+                        Text('${_formatPrice(_currentOrder.totalPrice)}원', style: const TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700)),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('픽업 ${order.pickupDt.toString().substring(0, 16)}',
-                        style: const TextStyle(
-                            fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82))),
+                    Text('픽업 ${_currentOrder.pickupDt.toString().substring(0, 16)}', style: const TextStyle(fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82))),
                   ],
                 ),
               ),
@@ -182,14 +239,11 @@ class OrderDetailScreen extends StatelessWidget {
   Widget _buildMenuDetailSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
       child: Column(
-        children: order.items.map((item) {
-          final isLast = item == order.items.last;
+        children: _currentOrder.items.map((item) {
+          final isLast = item == _currentOrder.items.last;
           return Column(
             children: [
               Padding(
@@ -197,23 +251,18 @@ class OrderDetailScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Text(item.productName,
-                            style: const TextStyle(
-                                fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700,
-                                color: Color(0xFF181C2E))),
-                        const SizedBox(width: 14),
-                        Container(width: 1, height: 16, color: const Color(0xFFCACCDA)),
-                        const SizedBox(width: 14),
-                        Text('${item.quantity}개',
-                            style: const TextStyle(
-                                fontFamily: 'Sen', fontSize: 12, color: Color(0xFF6B6E82))),
-                      ],
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Text(item.productName, style: const TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF181C2E))),
+                          const SizedBox(width: 14),
+                          Container(width: 1, height: 16, color: const Color(0xFFCACCDA)),
+                          const SizedBox(width: 14),
+                          Text('${item.quantity}개', style: const TextStyle(fontFamily: 'Sen', fontSize: 12, color: Color(0xFF6B6E82))),
+                        ],
+                      ),
                     ),
-                    Text('${item.subtotal}원',
-                        style: const TextStyle(
-                            fontFamily: 'Inter', fontSize: 14, color: Color(0xFF828282))),
+                    Text('${_formatPrice(item.subtotal)}원', style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0xFF828282))),
                   ],
                 ),
               ),
@@ -226,40 +275,36 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _buildPaymentSection() {
-    // 원가 합계
-    final originalTotal = order.items.fold(
-        0, (sum, i) => sum + (i.productOriPrice * i.quantity));
-    final discount = originalTotal - order.totalPrice;
+    final int originalTotal = _currentOrder.items.fold(0, (sum, i) => sum + (i.productOriPrice * i.quantity));
+    final int discount = originalTotal - _currentOrder.totalPrice;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('결제 금액',
-            style: TextStyle(
-                fontFamily: 'Sen', fontWeight: FontWeight.bold,
-                fontSize: 14, color: Color(0xFF181C2E))),
+        const Text('결제 금액', style: TextStyle(fontFamily: 'Sen', fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF181C2E))),
         const SizedBox(height: 16),
-        _buildPriceRow('정가', '$originalTotal원'),
+        _buildPriceRow('정가', '${_formatPrice(originalTotal)}원'),
         const SizedBox(height: 8),
-        _buildPriceRow('할인액', '- ${discount}원'),
+        _buildPriceRow('할인액', '- ${_formatPrice(discount)}원', isDiscount: true),
         const SizedBox(height: 12),
-        _buildPriceRow('합계', '${order.totalPrice}원', isTotal: true),
+        _buildPriceRow('합계', '${_formatPrice(_currentOrder.totalPrice)}원', isTotal: true),
+        const SizedBox(height: 12),
+        const Divider(height: 1, color: Color(0xFFEEF2F6)), // ✅ 합계 아래로 이동된 선
       ],
     );
   }
 
-  Widget _buildPriceRow(String label, String price, {bool isTotal = false}) {
+  Widget _buildPriceRow(String label, String price, {bool isTotal = false, bool isDiscount = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0xFF717171))),
+        Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0xFF717171))),
         Text(price,
             style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: isTotal ? 16 : 14,
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-                color: isTotal ? Colors.black : const Color(0xFF828282))),
+                color: isTotal ? Colors.black : (isDiscount ? Colors.red : const Color(0xFF828282)))),
       ],
     );
   }

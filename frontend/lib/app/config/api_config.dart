@@ -3,6 +3,17 @@ class ApiConfig {
   static const String baseUrl =
       'https://joya-nonstrategical-supersmartly.ngrok-free.dev';
 
+// ✅ 상대 경로를 전체 URL로 바꿔주는 메서드
+  static String getImageUrl(String? path) {
+    if (path == null || path.isEmpty) {
+      return "https://via.placeholder.com/150";
+    }
+    if (path.startsWith('http')) return path;
+
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$baseUrl$cleanPath';
+  }
+
   // 인증 엔드포인트
   static const String login = '/auth/login'; // POST (이메일/비밀번호 로그인)
   static const String register = '/auth/register'; // POST (소비자 회원가입)
@@ -22,8 +33,7 @@ class ApiConfig {
   // 장바구니 엔드포인트
   static const String cart = '/cart/'; // GET (장바구니 조회), DELETE (장바구니 전체 비우기)
   static const String cartItems = '/cart/items/'; // POST (장바구니 상품 추가)
-  static String cartItem(int cartItemId) =>
-      '/cart/items/$cartItemId/'; // PATCH (수량 변경), DELETE (상품 개별 삭제)
+  static String cartItem(String cartItemId) => '/cart/items/$cartItemId/';
 
   // 주문 엔드포인트
   static const String orders = '/orders/'; // GET (내 주문 목록 조회), POST (주문 생성)

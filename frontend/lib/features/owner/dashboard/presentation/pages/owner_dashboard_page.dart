@@ -27,7 +27,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           children: const [
             _OwnerDashboardHome(),           // 0: 홈
             OwnerSalesPage(),                // 1: 판매설정
-            OwnerOrderManagementScreen(initialHistoryMode: false), // 2: 주문관리 (네비 바 유지됨!)
+            OwnerOrderManagementScreen(initialHistoryMode: false), // 2: 주문관리
             OwnerMyPage(),                   // 3: 마이페이지
           ],
         ),
@@ -44,7 +44,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 }
 
-/// --- 탭 0: 홈 대시보드 콘텐츠 (기존과 동일) ---
+/// --- 탭 0: 홈 대시보드 콘텐츠 ---
 class _OwnerDashboardHome extends StatefulWidget {
   const _OwnerDashboardHome();
 
@@ -63,6 +63,7 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
   }
 
   Future<void> _load() async {
+    setState(() => _isLoading = true);
     final data = await OwnerDashboardService.fetch();
     if (!mounted) return;
     setState(() {
@@ -85,15 +86,15 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSalesCard(_data?.storeName ?? '', _data?.totalSales ?? '0'),
+            _buildSalesCard(_data?.storeName ?? '우리 매장', _data?.totalSales ?? '0'),
             const SizedBox(height: 24),
             _buildOrderStatButtons(context),
             const SizedBox(height: 32),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                '우리 매장에서 팔린 할인상품들이에요',
-                style: TextStyle(fontFamily: 'Sen', fontSize: 16, color: Color(0xFF181C2E)),
+                '우리 매장 상품 판매 현황',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF181C2E)),
               ),
             ),
             const SizedBox(height: 16),
@@ -102,9 +103,9 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildRankingSection('인기 상품', _data?.bestSellers ?? [])),
+                  Expanded(child: _buildRankingSection('인기 상품', _data?.bestSellers ?? [], isBest: true)),
                   const SizedBox(width: 15),
-                  Expanded(child: _buildRankingSection('비인기 상품', _data?.worstSellers ?? [])),
+                  Expanded(child: _buildRankingSection('비인기 상품', _data?.worstSellers ?? [], isBest: false)),
                 ],
               ),
             ),
@@ -117,15 +118,34 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
 
   Widget _buildSalesCard(String storeName, String totalSales) => Container(
     width: double.infinity,
-    height: 160,
     margin: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-    decoration: BoxDecoration(color: const Color(0xFF4FA55B), borderRadius: BorderRadius.circular(15)),
+    padding: const EdgeInsets.symmetric(vertical: 30),
+    decoration: BoxDecoration(
+      color: const Color(0xFF4FA55B),
+      borderRadius: BorderRadius.circular(15),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF4FA55B).withOpacity(0.3),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('$storeName 매출', style: const TextStyle(fontFamily: 'Sen', fontSize: 20, color: Colors.white)),
-        const SizedBox(height: 8),
-        Text('$totalSales원', style: const TextStyle(fontFamily: 'Sen', fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text('$storeName 매출', style: const TextStyle(fontSize: 18, color: Colors.white)),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(totalSales, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(width: 4),
+            const Text('원', style: TextStyle(fontSize: 20, color: Colors.white)),
+          ],
+        ),
       ],
     ),
   );
@@ -140,7 +160,7 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
               context,
               MaterialPageRoute(builder: (_) => const OwnerOrderManagementScreen(initialHistoryMode: false)),
             ).then((_) => _load()),
-            child: _buildStatButton('들어온 주문 수', (_data?.incomingCount ?? 0).toString()),
+            child: _buildStatButton('들어온 주문', (_data?.incomingCount ?? 0).toString()),
           ),
         ),
         const SizedBox(width: 15),
@@ -150,7 +170,7 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
               context,
               MaterialPageRoute(builder: (_) => const OwnerOrderManagementScreen(initialHistoryMode: true)),
             ).then((_) => _load()),
-            child: _buildStatButton('판매완료 주문 수', (_data?.completedCount ?? 0).toString()),
+            child: _buildStatButton('판매완료 주문', (_data?.completedCount ?? 0).toString()),
           ),
         ),
       ],
@@ -158,44 +178,69 @@ class _OwnerDashboardHomeState extends State<_OwnerDashboardHome> {
   );
 
   Widget _buildStatButton(String label, String count) => Container(
-    height: 70,
-    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFE4E4E4)), borderRadius: BorderRadius.circular(16)),
+    height: 80,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xFFF0F0F0)),
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5, offset: const Offset(0, 2)),
+      ],
+    ),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Color(0xFF6B6E82))),
-        const SizedBox(height: 4),
-        Text(count, style: const TextStyle(fontFamily: 'Sen', fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E1E1E))),
+        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF6B6E82))),
+        const SizedBox(height: 6),
+        Text(count, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E1E1E))),
       ],
     ),
   );
 
-  Widget _buildRankingSection(String title, List<String> items) => Column(
+  Widget _buildRankingSection(String title, List<String> items, {required bool isBest}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title, style: const TextStyle(fontFamily: 'Sen', fontSize: 16, color: Color(0xFF181C2E))),
+      Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF181C2E))),
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFF0F0F0))),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+        ),
         child: items.isEmpty
-            ? const Center(child: Text('데이터 없음', style: TextStyle(fontSize: 12, color: Colors.grey)))
+            ? const SizedBox(
+            height: 80,
+            child: Center(child: Text('데이터 없음', style: TextStyle(fontSize: 12, color: Colors.grey)))
+        )
             : Column(
           children: List.generate(items.length, (index) => Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Row(
                   children: [
-                    Text('${index + 1}위', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(width: 8),
-                    const Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(items[index], style: const TextStyle(fontSize: 12, color: Color(0xFF6B6E82)), overflow: TextOverflow.ellipsis)),
+                    Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isBest ? const Color(0xFF4FA55B) : Colors.orangeAccent
+                        )
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: Text(
+                            items[index],
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF1E1E1E)),
+                            overflow: TextOverflow.ellipsis
+                        )
+                    ),
                   ],
                 ),
               ),
-              if (index != items.length - 1) const Divider(height: 1, color: Color(0xFFEEF2F6)),
+              if (index != items.length - 1) const Divider(height: 1, color: Color(0xFFF5F5F5)),
             ],
           )),
         ),

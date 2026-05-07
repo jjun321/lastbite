@@ -1,3 +1,5 @@
+import 'package:frontend/app/config/api_config.dart';
+
 class OrderItemModel {
   final int productId;
   final String productName;
@@ -5,6 +7,8 @@ class OrderItemModel {
   final int productDisPrice;
   final int productOriPrice;
   final int subtotal;
+  final String? imgUrl;
+  final int? discountRate;
 
   OrderItemModel({
     required this.productId,
@@ -13,17 +17,21 @@ class OrderItemModel {
     required this.productDisPrice,
     required this.productOriPrice,
     required this.subtotal,
+    this.imgUrl,
+    this.discountRate,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
-      // ?? 를 사용하여 null이 올 경우 기본값을 할당합니다.
       productId: json['product_id'] ?? 0,
       productName: json['product_name'] ?? '',
-      quantity: json['quantity'] ?? 0,
+      quantity: json['quantity'] ?? json['order_prod_count'] ?? 0,
       productDisPrice: json['product_dis_price'] ?? 0,
       productOriPrice: json['product_ori_price'] ?? 0,
       subtotal: json['subtotal'] ?? 0,
+      // ✅ 여기서 호스트 주소를 합쳐줍니다.
+      imgUrl: ApiConfig.getImageUrl(json['img_url']),
+      discountRate: json['discount_rate'],
     );
   }
 
@@ -67,7 +75,7 @@ class OrderModel {
           : DateTime.now(),
       orderDt: json['order_dt'] != null
           ? DateTime.parse(json['order_dt'])
-          : DateTime.now(),
+          : (json['reg_dt'] != null ? DateTime.parse(json['reg_dt']) : DateTime.now()),
       items: (json['items'] as List<dynamic>? ?? [])
           .map((e) => OrderItemModel.fromJson(e))
           .toList(),

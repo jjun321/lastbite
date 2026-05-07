@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:frontend/features/cart/data/models/cart_model.dart';
 import 'package:frontend/features/order/data/models/order_model.dart';
 import 'package:frontend/features/order/data/repositories/order_repository_impl.dart';
+import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
 
 import 'complete_page.dart';
 
 class ReservationScreen extends StatefulWidget {
-  final CartModel cart; // cart_page에서 넘겨받음
+  final CartModel cart;
 
   const ReservationScreen({Key? key, required this.cart}) : super(key: key);
 
@@ -17,18 +18,35 @@ class ReservationScreen extends StatefulWidget {
 
 class _ReservationScreenState extends State<ReservationScreen> {
   final _repo = OrderRepositoryImpl();
+  final _authRepo = AuthRepositoryImpl();
+
   bool _isLoading = false;
   DateTime _pickupDt = DateTime.now().add(const Duration(hours: 1));
+
+  String _userName = '로드 중...';
+  String _userPhone = '010-0000-0000';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final user = await _authRepo.getUser();
+    if (user != null && mounted) {
+      setState(() {
+        _userName = user.userName;
+        _userPhone = user.userPhone;
+      });
+    }
+  }
 
   Future<void> _createOrder() async {
     setState(() => _isLoading = true);
     try {
-
       await _repo.createOrder(
         storeId: widget.cart.storeId,
-        // ✅ 해결 시도 1: DateTime을 String(ISO8601)으로 변환해서 전달
-        // 만약 repo의 createOrder가 DateTime을 받는다면,
-        // 해당 repo 안에서 .toIso8601String() 처리가 되어있는지 확인해야 합니다.
         pickupDt: _pickupDt,
         items: widget.cart.items
             .map((e) => OrderItemModel(
@@ -36,10 +54,9 @@ class _ReservationScreenState extends State<ReservationScreen> {
           productName: e.productName,
           quantity: e.quantity,
           productDisPrice: e.productDisPrice,
-          productOriPrice: e.productDisPrice,
+          productOriPrice: e.productOriPrice,
           subtotal: e.subtotal,
-        ))
-            .toList(),
+        )).toList(),
       );
 
       if (mounted) {
@@ -48,28 +65,15 @@ class _ReservationScreenState extends State<ReservationScreen> {
           MaterialPageRoute(builder: (_) => const ReservationCompleteScreen()),
         );
       }
-    } catch (e, stackTrace) {  // stackTrace 추가
-      print('❌ 에러 발생: $e');
-      print('❌ 위치: $stackTrace'); // 어느 파일 몇 번째 줄인지 알려줍니다.
-      // ✅ 해결 시도 2: 에러 상세 분석 (서버가 보내주는 진짜 에러 메시지 확인)
+    } catch (e) {
       String errorMessage = '주문 생성에 실패했습니다.';
-
-
       if (e is DioException) {
-        // 서버 응답 본문에 에러 이유가 적혀있을 경우 (예: {"message": "상품 재고 부족"})
         final serverMessage = e.response?.data;
-        print('❌ 서버 상세 에러: $serverMessage');
-        errorMessage = '서버 오류 (500): ${serverMessage ?? "서버 내부 로직 에러"}';
-      } else {
-        print('❌ 기타 에러: $e');
+        errorMessage = '서버 오류: ${serverMessage ?? "잠시 후 다시 시도해주세요."}';
       }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.redAccent,
-          ),
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -80,6 +84,12 @@ class _ReservationScreenState extends State<ReservationScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = widget.cart;
+
+    // 결제 금액 계산
+    final int totalOriPrice = cart.items.fold<int>(0, (sum, item) {
+      return sum + (item.productOriPrice * item.quantity);
+    });
+    final int totalDiscount = totalOriPrice - cart.totalPrice;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -95,16 +105,12 @@ class _ReservationScreenState extends State<ReservationScreen> {
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       width: 45, height: 45,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFECF0F4), shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back_ios_new,
-                          size: 18, color: Color(0xFF181C2E)),
+                      decoration: const BoxDecoration(color: Color(0xFFECF0F4), shape: BoxShape.circle),
+                      child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF181C2E)),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text('예약하기',
-                      style: TextStyle(fontFamily: 'Sen', fontSize: 17, color: Color(0xFF181C2E))),
+                  const Text('예약하기', style: TextStyle(fontFamily: 'Sen', fontSize: 17, color: Color(0xFF181C2E))),
                 ],
               ),
             ),
@@ -116,100 +122,51 @@ class _ReservationScreenState extends State<ReservationScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-
-                    // 가게 요약
-                    Row(
-                      children: [
-                        Container(
-                          width: 60, height: 60,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF98A8B8),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(cart.storeName,
-                                      style: const TextStyle(
-                                          fontFamily: 'Sen', fontSize: 14,
-                                          fontWeight: FontWeight.bold)),
-                                  const Text('주문번호 #대기중',
-                                      style: TextStyle(fontSize: 14,
-                                          color: Color(0xFF6B6E82),
-                                          decoration: TextDecoration.underline)),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Text('${cart.totalQuantity}개',
-                                      style: const TextStyle(
-                                          fontSize: 14, fontWeight: FontWeight.bold)),
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
-                                  ),
-                                  Text('${cart.totalPrice}원',
-                                      style: const TextStyle(
-                                          fontSize: 14, color: Color(0xFF6B6E82))),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '픽업 ${_pickupDt.toString().substring(0, 16)}',
-                                style: const TextStyle(fontSize: 13, color: Color(0xFF6B6E82)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    // 가게 이름
+                    Text(cart.storeName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
 
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Divider(color: Color(0xFFEEF2F6), thickness: 1),
                     ),
 
-                    // 주문 메뉴 목록
-                    const Text('주문 메뉴',
-                        style: TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.bold)),
+                    // 주문 메뉴 섹션
+                    const Text('주문 메뉴', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F5),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
                       child: Column(
-                        children: cart.items.map((item) =>
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('${item.productName} | ${item.quantity}개',
-                                      style: const TextStyle(fontSize: 14, color: Color(0xFF181C2E))),
-                                  Text('${item.subtotal}원',
-                                      style: const TextStyle(fontSize: 14, color: Color(0xFF828282))),
-                                ],
-                              ),
-                            ),
-                        ).toList(),
+                        children: cart.items.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('${item.productName} | ${item.quantity}개', style: const TextStyle(color: Color(0xFF181C2E))),
+                              Text('${item.subtotal}원', style: const TextStyle(color: Color(0xFF181C2E))),
+                            ],
+                          ),
+                        )).toList(),
                       ),
                     ),
 
-                    // 결제 금액
                     const SizedBox(height: 30),
-                    const Text('결제 금액',
-                        style: TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.bold)),
+
+                    // ✅ 결제 금액 섹션
+                    const Text('결제 금액', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
                     const SizedBox(height: 12),
+                    _buildRow('정가', '${totalOriPrice}원'),
+                    _buildRow('할인액', '-${totalDiscount}원', valueColor: Colors.red),
                     _buildRow('합계', '${cart.totalPrice}원', isBold: true),
+
+                    const SizedBox(height: 30),
+
+                    // ✅ 주문자 정보 섹션 (배경색 제거 및 양 끝 정렬)
+                    const Text('주문자 정보', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
+                    const SizedBox(height: 12),
+                    // Container의 배경색과 패딩을 제거하고 직접 Row들을 배치
+                    _buildRow('주문자', _userName, isBold: true),
+                    _buildRow('연락처', _userPhone, isBold: true),
 
                     const SizedBox(height: 40),
                   ],
@@ -217,22 +174,20 @@ class _ReservationScreenState extends State<ReservationScreen> {
               ),
             ),
 
-            // 예약하기 버튼
+            // 예약 버튼
             Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24),
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _createOrder,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4FA55B),
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('예약하기',
-                    style: TextStyle(color: Colors.white, fontSize: 16,
-                        fontWeight: FontWeight.w500)),
+                    : const Text('예약하기', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -241,17 +196,22 @@ class _ReservationScreenState extends State<ReservationScreen> {
     );
   }
 
-  Widget _buildRow(String label, String value, {bool isBold = false}) {
+  // ✅ 결제 금액과 주문자 정보 모두에 공통으로 사용되는 Row 빌더
+  Widget _buildRow(String label, String value, {bool isBold = false, Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween, // 양 끝으로 정렬
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, color: Color(0xFF717171))),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(label, style: const TextStyle(color: Color(0xFF6B6E82), fontSize: 14)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: valueColor ?? const Color(0xFF181C2E),
+            ),
+          ),
         ],
       ),
     );
