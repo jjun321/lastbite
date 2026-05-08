@@ -158,6 +158,7 @@ class CartItemView(APIView):
                 "product_id": product_id,
                 "product_name": product.product_name,
                 "product_dis_price": product.product_dis_price,
+                "product_ori_price": product.product_ori_price,
                 "quantity": quantity,
                 "product_qty": product.product_count,
                 "subtotal": product.product_dis_price * quantity,

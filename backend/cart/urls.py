@@ -5,5 +5,5 @@ from cart.views import CartItemDetailView, CartItemView, CartView
 urlpatterns = [
     path('', CartView.as_view(), name='cart'),
     path('items/', CartItemView.as_view(), name='cart-item-add'),
-    path('items/<int:cart_item_id>/', CartItemDetailView.as_view(), name='cart-item-detail'),
+    path('items/<uuid:cart_item_id>/', CartItemDetailView.as_view(), name='cart-item-detail'),
 ]
