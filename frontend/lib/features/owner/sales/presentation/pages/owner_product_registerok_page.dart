@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/features/owner/sales/presentation/pages/owner_sales_page.dart';
+import 'package:frontend/features/owner/dashboard/presentation/pages/owner_dashboard_page.dart';
 
 // 상품 등록 완료 화면
 class OwnerProductRegisterOkPage extends StatelessWidget {
@@ -64,7 +64,8 @@ class OwnerProductRegisterOkPage extends StatelessWidget {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const OwnerSalesPage(),
+                        builder: (_) =>
+                            const OwnerDashboardScreen(initialTabIndex: 1),
                       ),
                       (route) => false,
                     );
@@ -79,10 +80,7 @@ class OwnerProductRegisterOkPage extends StatelessWidget {
                   ),
                   child: const Text(
                     '상품 추가 페이지로 이동',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),

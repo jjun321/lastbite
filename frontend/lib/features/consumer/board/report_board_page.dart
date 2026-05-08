@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'data/post_model.dart';
+import 'data/post_service.dart';
 import 'report_form_page.dart';
-import 'package:frontend/data/mock_data.dart';
-import 'package:frontend/data/models.dart';
 
-// 제보게시판 페이지
-
+// 제보게시판 페이지 — 서버 데이터 연동
 class ReportBoardPage extends StatefulWidget {
   const ReportBoardPage({super.key});
 
@@ -13,20 +13,71 @@ class ReportBoardPage extends StatefulWidget {
 }
 
 class _ReportBoardPageState extends State<ReportBoardPage> {
-  void _handleRefresh() {
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('내 주변 정보를 새로고침했습니다.')),
-    );
+  List<PostModel> _posts = [];
+  bool _loading = false;
+  double? _lat;
+  double? _long;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
   }
 
-  void _openReportSheet() {
-    showModalBottomSheet(
+  Future<void> _loadPosts() async {
+    setState(() => _loading = true);
+    try {
+      // 위치 권한 확인 후 현재 위치 가져오기
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.whileInUse ||
+          perm == LocationPermission.always) {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
+        );
+        _lat = pos.latitude;
+        _long = pos.longitude;
+      }
+    } catch (e) {
+      debugPrint('위치 오류: $e');
+    }
+
+    final posts = await PostService.fetchPosts(
+      lat: _lat,
+      long: _long,
+      radiusKm: 3,
+    );
+
+    if (mounted) {
+      setState(() {
+        _posts = posts;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    await _loadPosts();
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('내 주변 정보를 새로고침했습니다.')));
+    }
+  }
+
+  void _openReportSheet() async {
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const ReportFormPage(),
+      builder: (context) => ReportFormPage(userLat: _lat, userLong: _long),
     );
+    // 제보 등록 후 목록 갱신
+    _loadPosts();
   }
 
   @override
@@ -41,26 +92,36 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
               child: Text(
                 '커뮤니티',
                 style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF181C2E)),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF181C2E),
+                ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 29.0, vertical: 24.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 29.0,
+                vertical: 24.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      const Text('내 주변 찾기',
-                          style: TextStyle(fontSize: 16, fontFamily: 'Sen')),
+                      const Text(
+                        '내 주변 찾기',
+                        style: TextStyle(fontSize: 16, fontFamily: 'Sen'),
+                      ),
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: _handleRefresh,
                         child: const Padding(
                           padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.refresh, size: 22, color: Color(0xFF1E1E1E)),
+                          child: Icon(
+                            Icons.refresh,
+                            size: 22,
+                            color: Color(0xFF1E1E1E),
+                          ),
                         ),
                       ),
                     ],
@@ -68,27 +129,50 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
                   InkWell(
                     onTap: _openReportSheet,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE2E3E5),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('제보하기',
-                          style: TextStyle(color: Color(0xFF32343E), fontSize: 14, fontFamily: 'Sen')),
+                      child: const Text(
+                        '제보하기',
+                        style: TextStyle(
+                          color: Color(0xFF32343E),
+                          fontSize: 14,
+                          fontFamily: 'Sen',
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 29),
-                itemCount: reportList.length,
-                itemBuilder: (context, index) {
-                  final report = reportList[index];
-                  return _buildListItem(report);
-                },
-              ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _posts.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '주변에 제보된 내용이 없습니다.',
+                        style: TextStyle(
+                          color: Color(0xFF9C9BA6),
+                          fontSize: 14,
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _handleRefresh,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 29),
+                        itemCount: _posts.length,
+                        itemBuilder: (context, index) {
+                          return _buildListItem(_posts[index]);
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
@@ -96,7 +180,17 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
     );
   }
 
-  Widget _buildListItem(CommunityReport report) {
+  Widget _buildListItem(PostModel post) {
+    // 날짜 포맷: "2026-01-01T12:00:00Z" → "2026.01.01."
+    String formattedDate = '';
+    try {
+      final dt = DateTime.parse(post.regDt);
+      formattedDate =
+          '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}.';
+    } catch (_) {
+      formattedDate = post.regDt;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       constraints: const BoxConstraints(minHeight: 180),
@@ -116,42 +210,125 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(report.date,
-                      style: const TextStyle(color: Color(0xFF9C9BA6), fontSize: 12, fontFamily: 'Sen')),
-                  const SizedBox(height: 10),
-                  Text(report.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF32343E), fontFamily: 'Sen')),
-                  const SizedBox(height: 5),
-                  Text(report.storeName,
-                      style: const TextStyle(color: Color(0xFF747783), fontSize: 12, fontFamily: 'Sen')),
-                  const SizedBox(height: 8),
-                  Text(
-                    report.content,
-                    maxLines: 3, // 최대 3줄까지만 허용
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Color(0xFF747783), fontSize: 12, fontFamily: 'Sen', height: 1.4),
+                  // 날짜 + 거리
+                  Row(
+                    children: [
+                      Text(
+                        formattedDate,
+                        style: const TextStyle(
+                          color: Color(0xFF9C9BA6),
+                          fontSize: 12,
+                          fontFamily: 'Sen',
+                        ),
+                      ),
+                      if (post.distanceKm != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '${post.distanceKm!.toStringAsFixed(1)}km',
+                          style: const TextStyle(
+                            color: Color(0xFF4FA55B),
+                            fontSize: 12,
+                            fontFamily: 'Sen',
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+                  // 제보 이름 (title)
+                  Text(
+                    post.postName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: Color(0xFF32343E),
+                      fontFamily: 'Sen',
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  // 매장명
+                  if (post.storeName != null)
+                    Text(
+                      post.storeName!,
+                      style: const TextStyle(
+                        color: Color(0xFF747783),
+                        fontSize: 12,
+                        fontFamily: 'Sen',
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  // 내용
+                  if (post.content != null && post.content!.isNotEmpty)
+                    Text(
+                      post.content!,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF747783),
+                        fontSize: 12,
+                        fontFamily: 'Sen',
+                        height: 1.4,
+                      ),
+                    ),
                   // 이미지 영역
-                  Container(
+                  if (post.imgUrl != null) ...[
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        post.imgUrl!,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFC4C4C4),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 16),
+                    Container(
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                          color: const Color(0xFFC4C4C4),
-                          borderRadius: BorderRadius.circular(10))),
+                        color: const Color(0xFFC4C4C4),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
-          // 유저 프로필 아이콘 (변함 없음)
+          // 유저 아바타 (작성자 이니셜)
           Positioned(
             left: 0,
             top: 2,
             child: Container(
-                width: 43,
-                height: 43,
-                decoration: const BoxDecoration(
-                    color: Color(0xFF98A8B8), shape: BoxShape.circle)),
+              width: 43,
+              height: 43,
+              decoration: const BoxDecoration(
+                color: Color(0xFF98A8B8),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  post.userName.isNotEmpty
+                      ? post.userName[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
