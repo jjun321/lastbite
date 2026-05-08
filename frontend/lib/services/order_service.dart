@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:frontend/app/config/api_client.dart';
 import 'package:frontend/app/config/api_config.dart';
 import 'package:frontend/features/owner/order_manage/data/models/owner_order_model.dart';
@@ -17,7 +18,6 @@ class OrderService {
     return null;
   }
 
-  /// 📌 들어온 주문 목록 (OwnerOrderModel 리스트 반환)
   Future<List<OwnerOrderModel>> fetchOrders() async {
     try {
       final storeId = await _getStoreId();
@@ -31,7 +31,6 @@ class OrderService {
     }
   }
 
-  /// 📌 주문 내역
   Future<List<OwnerOrderModel>> fetchHistory() async {
     try {
       final storeId = await _getStoreId();
@@ -45,7 +44,6 @@ class OrderService {
     }
   }
 
-  /// 📌 주문 상세
   Future<OwnerOrderModel?> fetchOrderDetail(int orderId) async {
     try {
       final storeId = await _getStoreId();
@@ -58,26 +56,33 @@ class OrderService {
     }
   }
 
-  /// 📌 주문 수락
+  /// 📌 주문 수락 (에러 로그 강화)
   Future<bool> acceptOrder(int orderId) async {
     try {
       final storeId = await _getStoreId();
       if (storeId == null) return false;
       await _dio.patch(ApiConfig.ownerOrderAccept(storeId, orderId));
       return true;
+    } on DioException catch (e) {
+      print('❌ acceptOrder 상세 에러: ${e.response?.data}'); // 서버가 주는 에러 메시지 확인용
+      print('acceptOrder status: ${e.response?.statusCode}');
+      return false;
     } catch (e) {
-      print('acceptOrder error: $e');
+      print('acceptOrder unknown error: $e');
       return false;
     }
   }
 
-  /// 📌 주문 취소
+  /// 📌 주문 취소 (에러 로그 강화)
   Future<bool> cancelOrder(int orderId) async {
     try {
       final storeId = await _getStoreId();
       if (storeId == null) return false;
       await _dio.patch(ApiConfig.ownerOrderCancel(storeId, orderId));
       return true;
+    } on DioException catch (e) {
+      print('❌ cancelOrder 상세 에러: ${e.response?.data}');
+      return false;
     } catch (e) {
       print('cancelOrder error: $e');
       return false;

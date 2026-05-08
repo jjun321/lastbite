@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/features/store/data/models/product_model.dart';
 import 'package:frontend/features/cart/data/repositories/cart_repository_impl.dart';
 import 'package:frontend/features/store/data/repositories/product_repository_impl.dart';
+import 'package:frontend/features/consumer/order/presentation/widgets/cart_reset_dialog.dart';
 import 'cart_page.dart';
 
 class OrderScreen extends StatefulWidget {
@@ -30,42 +31,53 @@ class _OrderScreenState extends State<OrderScreen> {
     _productsFuture = _productRepo.getStoreProducts(widget.storeId);
   }
 
+  // 장바구니 담기 핵심 로직
   Future<void> _addToCart(ProductModel item) async {
-    try {
-      print("--- 장바구니 담기 시도 ---");
-      print("가게 ID: ${widget.storeId}, 상품 ID: ${item.productId}");
+    // 1. 담기 시도 (에러를 던지지 않고 결과값을 받음)
+    final result = await _cartRepo.addCartItem(
+      productId: item.productId,
+      quantity: 1,
+      storeId: widget.storeId,
+    );
 
-      // ✅ 수정: addCartItem을 호출할 때 storeId도 함께 보내야 합니다.
-      // (CartRepository의 addCartItem 메서드에 storeId 파라미터가 있다고 가정)
-      await _cartRepo.addCartItem(
-        productId: item.productId,
-        quantity: 1,
-        storeId: widget.storeId, // 👈 만약 레포지토리에 이 필드가 있다면 추가하세요!
+    // 2. 결과에 따른 분기 처리
+    if (result == AddCartResult.success) {
+      _showSnackBar('${item.productName}이(가) 장바구니에 담겼습니다.', const Color(0xFF4FA55B));
+    }
+    else if (result == AddCartResult.differentStore) {
+      // 다른 매장 상품이 있을 경우 팝업 노출
+      _showResetDialog(item);
+    }
+    else {
+      _showSnackBar('장바구니 담기 실패. 다시 시도해주세요.', Colors.red);
+    }
+  }
+
+  // 초기화 확인 팝업 노출 함수
+  void _showResetDialog(ProductModel item) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CartResetDialog(
+        onConfirm: () async {
+          Navigator.pop(context); // 팝업 닫기
+          await _cartRepo.clearCart(); // 장바구니 비우기
+          await _addToCart(item);      // 비운 후 현재 상품 다시 담기
+        },
+        onCancel: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  void _showSnackBar(String message, Color bgColor) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 1),
+          backgroundColor: bgColor,
+        ),
       );
-
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${item.productName}이(가) 장바구니에 담겼습니다.'),
-            duration: const Duration(seconds: 1),
-            backgroundColor: const Color(0xFF4FA55B),
-          ),
-        );
-      }
-    } catch (e) {
-      print("❌ 장바구니 담기 실패 상세 원인: $e");
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            // 화면에도 에러 내용을 포함해서 띄워줍니다.
-            content: Text('장바구니 담기 실패: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
     }
   }
 
@@ -106,7 +118,7 @@ class _OrderScreenState extends State<OrderScreen> {
               ),
             ),
 
-            // 상품 목록
+            // 상품 목록 리스트
             Expanded(
               child: FutureBuilder<List<ProductModel>>(
                 future: _productsFuture,
@@ -150,7 +162,7 @@ class _OrderScreenState extends State<OrderScreen> {
               ),
             ),
 
-            // 선택 완료 버튼
+            // 하단 버튼
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: ElevatedButton(
@@ -179,25 +191,23 @@ class _OrderScreenState extends State<OrderScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 이미지
+          // 상품 이미지
           Container(
             height: 94,
             width: double.infinity,
-            margin: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 8),
+            margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: item.imgUrl != null ? null : const Color(0xFFC4C4C4),
+              color: const Color(0xFFC4C4C4),
               borderRadius: BorderRadius.circular(5),
               image: item.imgUrl != null
-                  ? DecorationImage(
-                  image: NetworkImage(item.imgUrl!), fit: BoxFit.cover)
+                  ? DecorationImage(image: NetworkImage(item.imgUrl!), fit: BoxFit.cover)
                   : null,
             ),
           ),
 
-          // 상품명 + 담기 버튼
+          // 이름 및 추가 버튼
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -221,9 +231,9 @@ class _OrderScreenState extends State<OrderScreen> {
             ),
           ),
 
-          // 가격
+          // 가격 정보
           Padding(
-            padding: const EdgeInsets.only(left: 12, top: 4, bottom: 8),
+            padding: const EdgeInsets.only(left: 12, top: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

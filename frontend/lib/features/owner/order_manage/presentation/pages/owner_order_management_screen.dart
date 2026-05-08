@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:frontend/features/owner/order_manage/data/models/owner_order_model.dart';
 import 'package:frontend/services/order_service.dart';
-import 'owner_order_detail_page.dart'; // 파일명 확인 필요 (이전 가이드에서는 screen으로 명칭)
+import 'owner_order_detail_page.dart';
 
 class OwnerOrderManagementScreen extends StatefulWidget {
   final bool initialHistoryMode;
@@ -26,21 +26,21 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
     _fetchData();
   }
 
-  // ISO8601 시간을 보기 좋게 변환하는 헬퍼 함수
+  String _formatCurrency(int amount) => _f.format(amount);
+
   String formatPickupTime(String timeStr) {
     if (timeStr.isEmpty) return "시간 정보 없음";
     try {
       DateTime dt = DateTime.parse(timeStr);
       return DateFormat('yyyy-MM-dd HH:mm').format(dt);
     } catch (e) {
-      return timeStr;
+      return timeStr.contains('T') ? timeStr.replaceAll('T', ' ').substring(0, 16) : timeStr;
     }
   }
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      // OrderService에서 가져온 데이터가 OwnerOrderModel 리스트인지 확인 필요
       List<OwnerOrderModel> result = isHistoryMode
           ? await _orderService.fetchHistory()
           : await _orderService.fetchOrders();
@@ -80,10 +80,19 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
                     child: GestureDetector(
                       onTap: () async {
                         Navigator.pop(context);
-                        bool success = toAccepted
-                            ? await _orderService.acceptOrder(order.orderId)
-                            : await _orderService.cancelOrder(order.orderId);
-                        if (success) _fetchData();
+                        setState(() => _isLoading = true);
+                        try {
+                          bool success = toAccepted
+                              ? await _orderService.acceptOrder(order.orderId)
+                              : await _orderService.cancelOrder(order.orderId);
+                          if (success) {
+                            await _fetchData();
+                          }
+                        } catch (e) {
+                          debugPrint("상태 변경 오류: $e");
+                        } finally {
+                          setState(() => _isLoading = false);
+                        }
                       },
                       child: Container(
                         height: 45,
@@ -149,9 +158,10 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
                   style: const TextStyle(color: Color(0xFF6B6E82)),
                 ),
               )
-                  : ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                  : ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 itemCount: _orders.length,
+                separatorBuilder: (context, index) => const Divider(height: 40, color: Color(0xFFEEF2F6)),
                 itemBuilder: (context, index) => _buildOrderCard(_orders[index]),
               ),
             ),
@@ -207,8 +217,6 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
   Widget _buildOrderCard(OwnerOrderModel order) {
     String statusText = '';
     Color statusColor = const Color(0xFF6B6E82);
-
-    // 백엔드 상태 코드 대응
     switch (order.orderStatus) {
       case 'S02': statusText = '수락됨'; statusColor = const Color(0xFF4FA55B); break;
       case 'S03': statusText = '완료됨'; statusColor = const Color(0xFF4FA55B); break;
@@ -216,78 +224,130 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
       default: statusText = '대기중'; statusColor = const Color(0xFF181C2E);
     }
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => OwnerOrderDetailScreen(order: order)),
-      ).then((_) => _fetchData()),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFEEF2F6)))),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 64, height: 64,
-                  decoration: BoxDecoration(color: const Color(0xFFF4F5F7), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF181C2E)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => OwnerOrderDetailScreen(order: order)),
+          ).then((_) => _fetchData()),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 60, height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF98A8B8),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(order.buyerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                          Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${order.itemSummary}',
-                        style: const TextStyle(color: Color(0xFF181C2E), fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '${_f.format(order.totalPrice)}원',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                          '픽업: ${formatPickupTime(order.pickupDt)}',
-                          style: const TextStyle(color: Color(0xFF6B6E82), fontSize: 12)
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            // 완료되거나 취소된 주문이 아닐 때만 버튼 노출 (상태가 '접수 대기' 혹은 '수락됨'인 경우)
-            if (order.orderStatus != 'S03' && order.orderStatus != 'S04') ...[
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  _buildActionButton(
-                      '주문 수락',
-                      order.orderStatus == 'S02' ? const Color(0xFFB3BA9F) : const Color(0xFF4FA55B),
-                      order.orderStatus == 'S02' ? null : () => _showConfirmDialog(context: context, title: '주문을 수락하시겠습니까?', actionColor: const Color(0xFF4FA55B), order: order, toAccepted: true)
-                  ),
-                  const SizedBox(width: 12),
-                  _buildActionButton(
-                      '주문 취소',
-                      const Color(0xFFD63030),
-                          () => _showConfirmDialog(context: context, title: '주문을 취소하시겠습니까?', actionColor: const Color(0xFFD63030), order: order, toAccepted: false)
-                  ),
-                ],
+                child: const Icon(Icons.shopping_bag, color: Colors.white),
               ),
-            ]
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 첫 번째 줄: 주문자명 (좌) | 주문번호 (우)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          order.buyerName,
+                          style: const TextStyle(
+                            fontFamily: 'Sen', fontSize: 16, fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '#${order.orderId}',
+                          style: const TextStyle(
+                            fontFamily: 'Sen', fontSize: 12,
+                            color: Color(0xFF6B6E82),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // 두 번째 줄: 요약 및 가격 (좌) | 주문상태 (우)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  order.itemSummary,
+                                  style: const TextStyle(fontFamily: 'Sen', fontSize: 13, color: Color(0xFF181C2E)),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
+                              ),
+                              Text(
+                                '${_formatCurrency(order.totalPrice)}원',
+                                style: const TextStyle(fontFamily: 'Sen', fontSize: 14, color: Color(0xFF181C2E), fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                              fontFamily: 'Sen', fontSize: 14, color: statusColor, fontWeight: FontWeight.bold
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        Text(
+          '픽업 예정: ${formatPickupTime(order.pickupDt)}',
+          style: const TextStyle(
+            fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82),
+          ),
+        ),
+        if (order.orderStatus != 'S03') ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildActionButton(
+                  '주문 수락',
+                  order.orderStatus == 'S02' ? const Color(0xFFB3BA9F) : const Color(0xFF4FA55B),
+                  order.orderStatus == 'S02' ? null : () => _showConfirmDialog(
+                      context: context,
+                      title: '주문을 수락하시겠습니까?',
+                      actionColor: const Color(0xFF4FA55B),
+                      order: order,
+                      toAccepted: true
+                  )
+              ),
+              const SizedBox(width: 12),
+              _buildActionButton(
+                  '주문 취소',
+                  order.orderStatus == 'S04' ? const Color(0xFFB3BA9F) : const Color(0xFFD63030),
+                  order.orderStatus == 'S04' ? null : () => _showConfirmDialog(
+                      context: context,
+                      title: '주문을 취소하시겠습니까?',
+                      actionColor: const Color(0xFFD63030),
+                      order: order,
+                      toAccepted: false
+                  )
+              ),
+            ],
+          ),
+        ]
+      ],
     );
   }
 
@@ -296,10 +356,16 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: 40,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+          height: 44,
+          decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8)
+          ),
           alignment: Alignment.center,
-          child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          child: Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)
+          ),
         ),
       ),
     );

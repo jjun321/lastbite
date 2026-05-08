@@ -3,6 +3,9 @@ import 'package:frontend/features/cart/data/models/cart_model.dart';
 import 'package:frontend/app/config/api_client.dart';
 import 'package:dio/dio.dart';
 
+// ✅ 장바구니 추가 결과를 정의하는 enum
+enum AddCartResult { success, differentStore, failure }
+
 class CartRepositoryImpl {
   final CartApi _api;
 
@@ -10,45 +13,31 @@ class CartRepositoryImpl {
 
   Future<CartModel?> getCart() async => await _api.getCart();
 
-  Future<String> addCartItem({
+  // ✅ 리턴 타입을 Future<AddCartResult>로 변경하여 UI에 상태 전달
+  Future<AddCartResult> addCartItem({
     required int productId,
     required int quantity,
     required int storeId,
   }) async {
     try {
-      // ✅ 1차 시도
-      return await _api.addCartItem(
+      await _api.addCartItem(
         productId: productId,
         quantity: quantity,
       );
+      return AddCartResult.success;
     } on DioException catch (e) {
       final errorMessage = e.response?.data?['message'] ?? '';
 
-      print('⚠️ addCartItem 실패 감지: $errorMessage');
-
-      // 🚨 다른 매장 상품 에러 감지
+      // 🚨 서버 에러 메시지에 '다른 매장'이 포함된 경우
       if (errorMessage.toString().contains('다른 매장의 상품')) {
-        print('🧹 장바구니 자동 비우기 실행');
-
-        try {
-          // ✅ 장바구니 비우기
-          await _api.clearCart();
-
-          print('🔁 장바구니 비운 후 재시도');
-
-          // ✅ 재시도
-          return await _api.addCartItem(
-            productId: productId,
-            quantity: quantity,
-          );
-        } catch (retryError) {
-          print('❌ 재시도 실패: $retryError');
-          rethrow;
-        }
+        return AddCartResult.differentStore;
       }
 
-      // ❗ 다른 에러는 그대로 던짐
-      rethrow;
+      print('❌ 장바구니 추가 실패: $errorMessage');
+      return AddCartResult.failure;
+    } catch (e) {
+      print('❌ 알 수 없는 에러: $e');
+      return AddCartResult.failure;
     }
   }
 
@@ -63,5 +52,6 @@ class CartRepositoryImpl {
   Future<void> deleteCartItem(String cartItemId) async =>
       await _api.deleteCartItem(cartItemId);
 
+  // 장바구니 전체 초기화
   Future<void> clearCart() async => await _api.clearCart();
 }

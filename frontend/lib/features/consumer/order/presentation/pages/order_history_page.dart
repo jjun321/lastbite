@@ -19,7 +19,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   @override
   void initState() {
     super.initState();
-    _loadOrders(); // 초기 데이터 로드
+    _loadOrders();
   }
 
   void _loadOrders() {
@@ -28,7 +28,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     });
   }
 
-  // 숫자에 세 자릿수 콤마(,)를 넣어주는 유틸리티 함수
   String _formatCurrency(int amount) {
     return amount.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -70,10 +69,14 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
               final allOrders = snapshot.data ?? [];
 
-              // 예시로 totalPrice의 합계... 수정필요
-              final int totalSavedAmount = allOrders.fold(0, (sum, order) => sum + order.totalPrice);
+              // ✅ [수정된 로직] 절약한 금액 계산
+              // 취소된 주문(S04)을 제외한 모든 주문의 (정가 합계 - 실제 결제 금액)을 합산합니다.
+              final int totalSavedAmount = allOrders.where((order) => order.orderStatus != 'S04').fold(0, (sum, order) {
+                final int orderOriPriceSum = order.items.fold(0, (iSum, item) => iSum + (item.productOriPrice * item.quantity));
+                final int savedAmount = orderOriPriceSum - order.totalPrice;
+                return sum + (savedAmount > 0 ? savedAmount : 0);
+              });
 
-              // S04 = 취소된 주문 필터링
               final displayItems = allOrders.where((o) {
                 return isReservedSelected
                     ? o.orderStatus != 'S04'
@@ -89,7 +92,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       child: Column(
                         children: [
                           _buildSavingsCard(_formatCurrency(totalSavedAmount)),
-
                           const SizedBox(height: 24),
                           _buildTabButtons(),
                           const SizedBox(height: 16),
@@ -244,7 +246,12 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   }
 
   Widget _buildOrderItem(OrderModel order) {
-    final repName = order.items.isNotEmpty ? order.items[0].productName : '-';
+    final String displayMenuName = order.items.isNotEmpty
+        ? (order.items.length > 1
+        ? '${order.items[0].productName} 외'
+        : order.items[0].productName)
+        : '-';
+
     final totalCount = order.items.fold(0, (sum, i) => sum + i.quantity);
 
     return Padding(
@@ -289,7 +296,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                     Row(
                       children: [
                         Text(
-                          repName,
+                          displayMenuName,
                           style: const TextStyle(
                             fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.bold,
                           ),
@@ -323,7 +330,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
           ),
           const SizedBox(height: 12),
           Text(
-            '픽업 ${order.pickupDt.toString().substring(0, 16)}',
+            '픽업 ${order.pickupDt.toString().substring(0, 16).replaceAll('T', ' ')}',
             style: const TextStyle(
               fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82),
             ),
