@@ -1,3 +1,7 @@
+import uuid
+import os
+from django.conf import settings
+from image.models.image import Image
 from django.utils.dateparse import parse_date
 from rest_framework import serializers
 from store.models.store import Store
@@ -6,9 +10,36 @@ from store.models.off_date import OffDate
 from store.utils import haversine_km, is_off_today, get_today_open_close
 from product.models.product import Product
 
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+MAX_IMG_SIZE = 5 * 1024 * 1024  # 5MB
+
+def _save_store_image(image_file, user) -> Image:
+    """
+    매장 이미지 파일을 저장하고 Image 레코드를 반환.
+    기존 product/owner_views.py의 save_product_image()와 동일한 패턴.
+    """
+    ext = image_file.name.rsplit('.', 1)[-1].lower()
+    uuid_name = f"{uuid.uuid4()}.{ext}"
+    save_dir = os.path.join(settings.MEDIA_ROOT, 'stores')
+    os.makedirs(save_dir, exist_ok=True)
+
+    with open(os.path.join(save_dir, uuid_name), 'wb+') as f:
+        for chunk in image_file.chunks():
+            f.write(chunk)
+
+    return Image.objects.create(
+        user_id=user,
+        img_name=image_file.name,
+        img_url=f"{settings.MEDIA_URL}stores/{uuid_name}",
+        img_path=f"/uploads/stores/{uuid_name}",
+        img_uuid_name=uuid_name,
+    )
+
 class StoreListSerializer(serializers.ModelSerializer):
     #GET /stores/ — 매장 목록
     store_id = serializers.IntegerField(source='pk')
+    store_lat = serializers.FloatField()
+    store_long = serializers.FloatField()
     is_closed = serializers.BooleanField()
     distance_km = serializers.SerializerMethodField()
     today_open = serializers.SerializerMethodField()
@@ -16,6 +47,7 @@ class StoreListSerializer(serializers.ModelSerializer):
     is_off_today = serializers.SerializerMethodField()
     rep_product = serializers.SerializerMethodField()
     is_favorite = serializers.SerializerMethodField()
+    store_img_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Store
@@ -24,7 +56,7 @@ class StoreListSerializer(serializers.ModelSerializer):
             'store_lat', 'store_long',
             'is_closed', 'distance_km',
             'today_open', 'today_close', 'is_off_today',
-            'rep_product','is_favorite',
+            'rep_product','is_favorite', 'store_img_url',
         ]
 
     def get_distance_km(self, obj):
@@ -75,13 +107,21 @@ class StoreListSerializer(serializers.ModelSerializer):
         favorite_ids = self.context.get('favorite_store_ids', set())
         return obj.pk in favorite_ids
 
+    def get_store_img_url(self, obj):
+        if obj.store_img_id:
+            return obj.store_img_id.img_url
+        return None
+
 
 class StoreDetailSerializer(serializers.ModelSerializer):
     #GET /stores/{store_id}/ — 매장 상세
     store_id = serializers.IntegerField(source='pk')
+    store_lat = serializers.FloatField()
+    store_long = serializers.FloatField()
     is_closed = serializers.BooleanField()
     is_off_today = serializers.SerializerMethodField()
     is_favorite = serializers.SerializerMethodField()
+    store_img_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Store
@@ -89,6 +129,7 @@ class StoreDetailSerializer(serializers.ModelSerializer):
             'store_id', 'store_name', 'store_address',
             'store_desc','store_lat', 'store_long',
             'is_closed', 'is_off_today', 'is_favorite',
+            'store_img_url',
         ]
 
     def get_is_off_today(self, obj):
@@ -98,6 +139,11 @@ class StoreDetailSerializer(serializers.ModelSerializer):
         # context에 미리 로드된 집합에서 O(1) 조회
         favorite_ids = self.context.get('favorite_store_ids', set())
         return obj.pk in favorite_ids
+
+    def get_store_img_url(self, obj):
+        if obj.store_img_id:
+            return obj.store_img_id.img_url
+        return None
 
 
 class StoreWorkingTimeSerializer(serializers.ModelSerializer):
@@ -125,15 +171,16 @@ class StoreWorkingTimeSerializer(serializers.ModelSerializer):
 class OwnerStoreCreateSerializer(serializers.ModelSerializer):
     # POST /owner/stores/ 가게 최초 등록
     working_times = serializers.DictField(write_only=True, required=False)
+    image_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
 
 
     class Meta:
         model = Store
         fields = [
             'store_name', 'store_address',
-            'store_desc', 'store_img_id',
+            'store_desc',
             'store_lat', 'store_long',
-            'working_times'
+            'working_times', 'image_file',
         ]
 
     def validate_store_name(self, value):
@@ -146,18 +193,35 @@ class OwnerStoreCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("가게 주소를 입력해주세요.")
         return value.strip()
 
+    def validate_image_file(self, value):
+        if value is None:
+            return value
+        ext = value.name.rsplit('.', 1)[-1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError("jpg, png, webp 형식만 업로드 가능합니다.")
+        if value.size > MAX_IMG_SIZE:
+            raise serializers.ValidationError("이미지 크기는 5MB 이하여야 합니다.")
+        return value
+
     def create(self, validated_data):
-        working_times = validated_data.pop('working_times', [])
+        working_times = validated_data.pop('working_times', None)
+        image_file = validated_data.pop('image_file', None)
+        user = self.context['request'].user
+        if image_file:
+            image = _save_store_image(image_file, user)
+            validated_data['store_img_id'] = image
         store = Store.objects.create(**validated_data)
-        working_times = [
-            StoreWorkingTime(
-                store_id=store,
-                working_day=f'D{i:02d}',
-                start_time=working_times.get('start_time'),
-                end_time=working_times.get('end_time')
-            ) for i in range(1, 8)  # 월(D01) ~ 일(D07)
-        ]
-        StoreWorkingTime.objects.bulk_create(working_times)
+
+        if working_times:
+            working_days = [
+                StoreWorkingTime(
+                    store_id=store,
+                    working_day=f'D{i:02d}',
+                    start_time=working_times.get('start_time'),
+                    end_time=working_times.get('end_time')
+                ) for i in range(1, 8)
+            ]
+            StoreWorkingTime.objects.bulk_create(working_days)
 
         return store
 
@@ -176,17 +240,22 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
     off_dates = serializers.ListField(
         child=serializers.DictField(), write_only=True, required=False
     )
+    image_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Store
         fields = [
             'store_name', 'store_address',
-            'store_desc', 'store_img_id',
+            'store_desc',
             'store_lat', 'store_long',
-            'working_times', 'off_dates'
+            'working_times', 'off_dates', 'image_file',
         ]
         # 모두 선택적 수정 허용
-        extra_kwargs = {f: {'required': False} for f in fields}
+        extra_kwargs = {f: {'required': False} for f in [
+            'store_name', 'store_address', 'store_desc',
+            'store_lat', 'store_long',
+            'working_times', 'off_dates', 'image_file',
+        ]}
 
     def validate_working_times(self, value):
         try:
@@ -203,9 +272,25 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("과거 날짜는 휴무일로 등록할 수 없습니다.")
         return value
 
+    def validate_image_file(self, value):  # ← 추가
+        if value is None:
+            return value
+        ext = value.name.rsplit('.', 1)[-1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError("jpg, png, webp 형식만 업로드 가능합니다.")
+        if value.size > MAX_IMG_SIZE:
+            raise serializers.ValidationError("이미지 크기는 5MB 이하여야 합니다.")
+        return value
+
     def update(self, instance, validated_data):
         working_times = validated_data.pop('working_times', None)
         off_dates = validated_data.pop('off_dates', None)
+        image_file = validated_data.pop('image_file', None)
+
+        if image_file is not None:
+            user = self.context['request'].user
+            image = _save_store_image(image_file, user)
+            instance.store_img_id = image
 
         # Store 기본 필드 업데이트
         for attr, value in validated_data.items():
@@ -239,6 +324,8 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
 class OwnerStoreDetailSerializer(serializers.ModelSerializer):
     #GET /owner/stores/me/ 점주 본인 가게 정보 조회
     store_id = serializers.IntegerField(source='pk', read_only=True)
+    store_lat = serializers.FloatField()
+    store_long = serializers.FloatField()
     store_img_url = serializers.SerializerMethodField()
     working_times = serializers.SerializerMethodField()
     off_dates = serializers.SerializerMethodField()

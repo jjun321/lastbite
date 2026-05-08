@@ -122,6 +122,24 @@ def notify_order_cancelled(order):
         target_type="ORDER",
     )
 
+
+def notify_special_deal(user, product_id, store_id):
+    """
+    N06: 특가 상품 알림 → 소비자에게 알림.
+    이상치 탐지에서 '너무 높은 할인(소비자 혜택)' 판정된 상품을
+    주기 작업(scheduled task)에서 근처 소비자에게 발송할 때 호출.
+
+    Args:
+        user:       알림 수신 소비자 User 인스턴스
+        product_id: 특가 상품 PK (target_id로 저장)
+        store_id:   해당 매장 PK (메시지 구성용, 현재는 로깅만)
+    """
+    _create_log(
+        receiver=user,
+        notification_type="N05",
+        target_id=product_id,
+        target_type="PRODUCT",
+    )
 def notify_order_accepted(order):
     """
     N05: 주문 수락 → 소비자에게 알림.

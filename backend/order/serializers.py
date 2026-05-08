@@ -141,17 +141,7 @@ class OrderCreateSerializer(serializers.Serializer):
         return order, total_price
 
 
-# ─── 주문 목록 조회 ──────────────────────────────────────
 
-class OrderListSerializer(TotalPriceMixin, serializers.ModelSerializer):
-    store_id = serializers.IntegerField(source='store_id_id')
-    store_name = serializers.CharField(source='store_id.store_name')
-    order_dt = serializers.DateTimeField(source='reg_dt')
-    total_price = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Order
-        fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'total_price']
 
 
 # ─── 주문 상세 조회 ──────────────────────────────────────
@@ -168,6 +158,21 @@ class OrderItemOutputSerializer(serializers.ModelSerializer):
 
     def get_subtotal(self, obj):
         return obj.product_dis_price * obj.order_prod_count
+
+# ─── 주문 목록 조회 ──────────────────────────────────────
+
+class OrderListSerializer(TotalPriceMixin, serializers.ModelSerializer):
+    store_id = serializers.IntegerField(source='store_id_id')
+    store_name = serializers.CharField(source='store_id.store_name')
+    order_dt = serializers.DateTimeField(source='reg_dt')
+    items = OrderItemOutputSerializer(source='orderprodlist_set', many=True)
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['order_id', 'store_id', 'store_name', 'order_status', 'pickup_dt', 'order_dt', 'items', 'total_price']
+
+
 
 
 class OrderDetailSerializer(TotalPriceMixin, serializers.ModelSerializer):

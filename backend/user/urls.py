@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, RegisterView, RefreshTokenView, LogoutView, EmailCheckView, PasswordResetRequestView, PasswordResetConfirmCheckView, PasswordResetConfirmView, UserProfileView, PasswordChangeView, ProfileImageUploadView, UserSavingsView, UserFavoriteListView
+from .views import LoginView, RegisterView, RefreshTokenView, LogoutView, EmailCheckView, PasswordResetRequestView, PasswordResetConfirmCheckView, PasswordResetConfirmView, UserProfileView, PasswordChangeView, ProfileImageUploadView, UserSavingsView, UserFavoriteListView, UserLocationView, UserLocationDetailView, UserRecommendView
 
 urlpatterns = [
     path('login', LoginView.as_view(), name='login'),
@@ -19,4 +19,7 @@ users_urlpatterns = [
     path('me/profile-image', ProfileImageUploadView.as_view(),name='profile-image-upload'),
     path('me/savings',       UserSavingsView.as_view(),       name='user-savings'),
     path('me/favorites',     UserFavoriteListView.as_view(),   name='user-favorites'),
+    path('me/locations',                UserLocationView.as_view(),       name='user-locations'),
+    path('me/locations/<int:log_id>',   UserLocationDetailView.as_view(), name='user-location-detail'),
+    path('me/recommendations',          UserRecommendView.as_view(),      name='user-recommendations'),
 ]

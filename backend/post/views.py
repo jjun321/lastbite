@@ -4,7 +4,7 @@ import math
 from django.conf import settings
 from django.db import transaction
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 
@@ -67,10 +67,11 @@ class PostListView(APIView):
 
         try:
             radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
+            #radius = radius / 1000.0  # km 단위로 변환
         except ValueError:
             return error_response(message="radius 값이 올바르지 않습니다.")
 
-        if not (1 <= radius <= MAX_RADIUS_KM):
+        if not (0.1 <= radius <= MAX_RADIUS_KM):
             return error_response(message="반경 값은 1~10km 사이여야 합니다.")
         try:
             page = max(0, int(request.query_params.get('page', 0)))
