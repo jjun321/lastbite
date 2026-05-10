@@ -26,4 +26,12 @@ class StoreRepositoryImpl {
       rethrow;
     }
   }
+
+  Future<List<int>> getRecommendedStoreIds({int topN = 10}) async {
+    try {
+      return await _api.getRecommendedStoreIds(topN: topN);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

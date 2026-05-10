@@ -50,9 +50,7 @@ class ApiConfig {
   static String deleteLocation(int logId) =>
       '/users/me/locations/$logId'; // DELETE (위치 삭제)
 
-  // 점주 주문 API
-  static String ownerOrders(int storeId) =>
-      '/owner/stores/$storeId/orders/';
+  static String ownerOrders(int storeId) => '/owner/stores/$storeId/orders/';
 
   static String ownerOrderHistory(int storeId) =>
       '/owner/stores/$storeId/orders/history/';
@@ -68,4 +66,8 @@ class ApiConfig {
 
   static String ownerOrderComplete(int storeId, int orderId) =>
       '/owner/stores/$storeId/orders/$orderId/complete/';
+
+  // 추천 엔드포인트
+  static const String recommendations =
+      '/users/me/recommendations'; // GET (ML 서버 기반 매장 추천)
 }
