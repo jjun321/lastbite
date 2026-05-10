@@ -34,4 +34,16 @@ class StoreApi {
     final List<dynamic> stores = response.data['data']['stores'];
     return stores.map((e) => StoreModel.fromJson(e)).toList();
   }
+
+  // GET /users/me/recommendations (ML 서버 기반 추천 store_id 목록, score 내림차순)
+  Future<List<int>> getRecommendedStoreIds({int topN = 10}) async {
+    final response = await _dio.get(
+      ApiConfig.recommendations,
+      queryParameters: {'top_n': topN},
+    );
+    final data = response.data['data'];
+    if (data == null) return [];
+    final List<dynamic> stores = data['stores'] ?? [];
+    return stores.map<int>((e) => e['store_id'] as int).toList();
+  }
 }
