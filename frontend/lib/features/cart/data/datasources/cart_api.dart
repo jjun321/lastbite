@@ -25,10 +25,13 @@ class CartApi {
     required int quantity,
   }) async {
     try {
-      final response = await _dio.post(ApiConfig.cartItems, data: {
-        'product_id': productId,
-        'quantity': quantity,
-      });
+      final response = await _dio.post(
+        ApiConfig.cartItems,
+        data: {
+          'product_id': productId,
+          'quantity': quantity,
+        },
+      );
       return response.data['data']['cart_item_id'].toString();
     } catch (e) {
       print('❌ CartApi addCartItem Error: $e');
@@ -36,31 +39,34 @@ class CartApi {
     }
   }
 
-  // 수량 변경
+  // 수량 변경 (최종 수정본)
   Future<void> updateCartItem({required String cartItemId, required int quantity}) async {
     try {
-      print('🚀 수량 변경 시도: ID=$cartItemId, 수량=$quantity');
-      print('🔗 요청 URL: ${ApiConfig.cartItem(cartItemId)}');
+      final path = ApiConfig.cartItem(cartItemId); // 결과: /cart/items/UUID/
+      print('🚀 최종 요청 경로: $path (수량: $quantity)');
 
       final response = await _dio.patch(
-          ApiConfig.cartItem(cartItemId),
-          data: {'quantity': quantity}
+        path, // Dio가 가지고 있는 baseUrl과 자동으로 합쳐집니다.
+        data: {'quantity': quantity},
       );
-
-      print('✅ 서버 응답: ${response.data}');
+      print('✅ 수정 성공: ${response.data}');
     } on DioException catch (e) {
-      // DioException 객체 e를 사용하여 로그 출력 (경고 방지)
-      print('❌ 장바구니 수정 실패: ${e.message}');
+      print('❌ 수량 변경 실패: ${e.response?.statusCode}');
+      print('❌ 에러 상세 내용: ${e.response?.data}');
       rethrow;
     }
   }
 
-  // 상품 삭제
+  // 상품 삭제 (최종 수정본)
   Future<void> deleteCartItem(String cartItemId) async {
     try {
-      await _dio.delete(ApiConfig.cartItem(cartItemId));
-    } catch (e) {
-      print('❌ CartApi deleteCartItem Error: $e');
+      final path = ApiConfig.cartItem(cartItemId);
+      print('🚀 삭제 요청 경로: $path');
+
+      await _dio.delete(path);
+      print('✅ 삭제 성공');
+    } on DioException catch (e) {
+      print('❌ 삭제 실패 상세: ${e.response?.data}');
       rethrow;
     }
   }
@@ -69,8 +75,8 @@ class CartApi {
   Future<void> clearCart() async {
     try {
       await _dio.delete(ApiConfig.cart);
-    } catch (_) {
-      print('❌ CartApi clearCart Error');
+    } catch (e) {
+      print('❌ CartApi clearCart Error: $e');
       rethrow;
     }
   }

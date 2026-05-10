@@ -38,6 +38,22 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
     }
   }
 
+  // itemSummary 문자열에서 총 개수를 추측하는 함수
+  // 예: "상품A 외 2건" -> 3개 / "상품B" -> 1개
+  String _extractCountFromSummary(String summary) {
+    if (summary.isEmpty) return "1개";
+
+    final RegExp regExp = RegExp(r'외\s*(\d+)건');
+    final match = regExp.firstMatch(summary);
+
+    if (match != null) {
+      int extraCount = int.parse(match.group(1)!);
+      return "${extraCount + 1}개"; // '외 N건'이면 첫번째 상품 + N건
+    }
+
+    return "1개"; // '외'가 없으면 단일 품목으로 간주
+  }
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
@@ -224,6 +240,15 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
       default: statusText = '대기중'; statusColor = const Color(0xFF181C2E);
     }
 
+    // 개수 표시 로직: items 리스트가 있으면 합산, 없으면 summary에서 추출
+    String displayCount;
+    if (order.items != null && order.items!.isNotEmpty) {
+      int sum = order.items!.fold(0, (prev, item) => prev + item.quantity);
+      displayCount = "$sum개";
+    } else {
+      displayCount = _extractCountFromSummary(order.itemSummary);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -249,16 +274,20 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 첫 번째 줄: 주문자명 (좌) | 주문번호 (우)
+                    // 첫 번째 줄: 메뉴 요약 (좌) | 주문번호 (우)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          order.buyerName,
-                          style: const TextStyle(
-                            fontFamily: 'Sen', fontSize: 16, fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            order.itemSummary,
+                            style: const TextStyle(
+                              fontFamily: 'Sen', fontSize: 16, fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           '#${order.orderId}',
                           style: const TextStyle(
@@ -270,19 +299,16 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // 두 번째 줄: 요약 및 가격 (좌) | 주문상태 (우)
+                    // 두 번째 줄: 개수 및 가격 (좌) | 주문상태 (우)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Row(
                             children: [
-                              Flexible(
-                                child: Text(
-                                  order.itemSummary,
-                                  style: const TextStyle(fontFamily: 'Sen', fontSize: 13, color: Color(0xFF181C2E)),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              Text(
+                                displayCount,
+                                style: const TextStyle(fontFamily: 'Sen', fontSize: 13, color: Color(0xFF181C2E)),
                               ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 8),
@@ -304,46 +330,61 @@ class _OwnerOrderManagementScreenState extends State<OwnerOrderManagementScreen>
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    // 세 번째 줄: 픽업 예정 시간
+                    Text(
+                      '픽업 예정: ${formatPickupTime(order.pickupDt)}',
+                      style: const TextStyle(
+                        fontFamily: 'Sen', fontSize: 13, color: Color(0xFF6B6E82),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          '픽업 예정: ${formatPickupTime(order.pickupDt)}',
-          style: const TextStyle(
-            fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82),
-          ),
-        ),
         if (order.orderStatus != 'S03') ...[
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildActionButton(
-                  '주문 수락',
-                  order.orderStatus == 'S02' ? const Color(0xFFB3BA9F) : const Color(0xFF4FA55B),
-                  order.orderStatus == 'S02' ? null : () => _showConfirmDialog(
-                      context: context,
-                      title: '주문을 수락하시겠습니까?',
-                      actionColor: const Color(0xFF4FA55B),
-                      order: order,
-                      toAccepted: true
-                  )
-              ),
-              const SizedBox(width: 12),
-              _buildActionButton(
-                  '주문 취소',
-                  order.orderStatus == 'S04' ? const Color(0xFFB3BA9F) : const Color(0xFFD63030),
-                  order.orderStatus == 'S04' ? null : () => _showConfirmDialog(
-                      context: context,
-                      title: '주문을 취소하시겠습니까?',
-                      actionColor: const Color(0xFFD63030),
-                      order: order,
-                      toAccepted: false
-                  )
-              ),
+              if (order.orderStatus == 'S01') ...[
+                _buildActionButton(
+                    '주문 수락',
+                    const Color(0xFF4FA55B),
+                        () => _showConfirmDialog(
+                        context: context,
+                        title: '주문을 수락하시겠습니까?',
+                        actionColor: const Color(0xFF4FA55B),
+                        order: order,
+                        toAccepted: true
+                    )
+                ),
+                const SizedBox(width: 12),
+                _buildActionButton(
+                    '주문 취소',
+                    const Color(0xFFD63030),
+                        () => _showConfirmDialog(
+                        context: context,
+                        title: '주문을 취소하시겠습니까?',
+                        actionColor: const Color(0xFFD63030),
+                        order: order,
+                        toAccepted: false
+                    )
+                ),
+              ] else if (order.orderStatus == 'S02') ...[
+                _buildActionButton(
+                    '수락됨',
+                    const Color(0xFFB3BA9F),
+                    null
+                ),
+              ] else if (order.orderStatus == 'S04') ...[
+                _buildActionButton(
+                    '취소됨',
+                    const Color(0xFFB3BA9F),
+                    null
+                ),
+              ],
             ],
           ),
         ]
