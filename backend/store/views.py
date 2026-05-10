@@ -13,8 +13,8 @@ from store.utils import haversine_km
 from store.models.favorite import Favorite
 from common.response import success_response, error_response, extract_first_error
 
-DEFAULT_RADIUS_KM = 3
-MAX_RADIUS_KM = 3000
+DEFAULT_RADIUS_M = 3000
+MAX_RADIUS_KM = 10
 MAX_PAGE_SIZE = 50
 
 
@@ -49,11 +49,12 @@ class StoreListView(APIView):
             return Response(api_response(False, "lat/long 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            radius = int(request.query_params.get('radius', DEFAULT_RADIUS_KM))
+            radius = float(request.query_params.get('radius', DEFAULT_RADIUS_M))
+            radius = radius / 1000.0  # km 단위로 변환
         except ValueError:
             return Response(api_response(False, "radius 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
 
-        if not (1 <= radius <= MAX_RADIUS_KM):
+        if not (0.1 <= radius <= MAX_RADIUS_KM):
             return Response(api_response(False, "반경 값은 1~10km 사이여야 합니다."), status=status.HTTP_400_BAD_REQUEST)
 
         try:

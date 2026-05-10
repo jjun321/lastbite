@@ -44,8 +44,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate_user_phone(self, value):
         # 전화번호 형식 검사
-        if not re.match(r'^010-\d{4}-\d{4}$', value):
-            raise serializers.ValidationError("전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)")
+        if not re.match(r'^\d{3}-\d{4}-\d{4}$', value) or re.match(r'^\d{3}-\d{3}-\d{4}$', value):
+            raise serializers.ValidationError("전화번호 형식이 올바르지 않습니다. (예: 123-4567-8901 or 123-456-7890)")
         return value
 
     def validate_user_password(self, value):
@@ -194,3 +194,31 @@ class PasswordChangeSerializer(serializers.Serializer):
                 {"new_password": "VAL_001"}
             )
         return data
+
+
+# --------- 위치 로그
+
+class LocationLogCreateSerializer(serializers.Serializer):
+    """POST /users/me/locations 요청 검증"""
+    lat = serializers.FloatField()
+    lon = serializers.FloatField()
+
+    def validate_lat(self, value):
+        if not (-90.0 <= value <= 90.0):
+            raise serializers.ValidationError("위도는 -90 ~ 90 사이여야 합니다.")
+        return value
+
+    def validate_lon(self, value):
+        if not (-180.0 <= value <= 180.0):
+            raise serializers.ValidationError("경도는 -180 ~ 180 사이여야 합니다.")
+        return value
+
+
+class LocationLogResponseSerializer(serializers.ModelSerializer):
+    """위치 로그 응답 직렬화"""
+    reg_dt = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
+
+    class Meta:
+        from user.models.location_log import LocationLog
+        model  = LocationLog
+        fields = ['log_id', 'lat', 'lon', 'reg_dt']

@@ -10,11 +10,14 @@ DELETE /owner/stores/{store_id}/products/{product_id}/     상품 삭제 (soft d
 
 import uuid
 import os
+import json
+import urllib.request
+import urllib.error
 
 from django.conf import settings
 from django.db import transaction
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework import status
 
@@ -29,8 +32,7 @@ from product.owner_serializers import (
     OwnerProductCreateSerializer,
     OwnerProductUpdateSerializer,
 )
-
-
+from product.price_log_utils import record_price_log
 # 공통 헬퍼
 
 def check_owner_type(user):
@@ -91,6 +93,50 @@ def validate_image_file(image_file):
         return "이미지 크기는 5MB 이하여야 합니다."
     return None
 
+def _check_anomaly(store_id: int, ori_price: int, dis_price: int) -> dict | None:
+    """
+    ML 서버에 이상치 탐지 요청.
+    - 이상치가 아니면 None 반환 (바로 저장 진행)
+    - 이상치이면 ML 결과 dict 반환 (프론트에 경고 필요)
+    - ML 서버 장애 시 None 반환 (저장 차단하지 않음 — 가용성 우선)
+    """
+    if not ori_price or ori_price <= 0:
+        return None
+
+    discount_rate = int((1 - dis_price / ori_price) * 100)
+
+    url     = f"{settings.ML_SERVER_URL}/anomaly/detect/"
+    payload = json.dumps({
+        "store_id":      store_id,
+        "discount_rate": discount_rate,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Content-Type":       "application/json",
+            "X-Internal-API-Key": settings.ML_INTERNAL_API_KEY,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            ml   = body.get("data", {})
+            if ml.get("is_anomaly"):
+                return {
+                    **ml,
+                    "price_info": {
+                        "product_ori_price": ori_price,
+                        "product_dis_price": dis_price,
+                        "discount_rate":     discount_rate,
+                    },
+                }
+            return None  # 정상
+    except Exception:
+        return None  # ML 서버 장애 → 저장 차단하지 않음
+
+
 class OwnerProductView(APIView):
     """
     GET  /owner/stores/{store_id}/products/ — 판매설정 화면 상품 목록
@@ -144,6 +190,27 @@ class OwnerProductView(APIView):
             if img_err:
                 return error_response(img_err)
 
+        force = str(request.data.get("force", "false")).lower() == "true"
+
+        # ── 이상치 체크 (force=true 이면 건너뜀) ──────────────────────────────
+        if not force:
+            anomaly = _check_anomaly(
+                store_id=store.store_id,
+                ori_price=data['product_ori_price'],
+                dis_price=data['product_dis_price'],
+            )
+            if anomaly:
+                # HTTP 200 + needs_confirm=True → 프론트가 경고 다이얼로그 표시
+                return success_response(
+                    data={
+                        "needs_confirm": True,  # ← 프론트 분기 키
+                        "anomaly": anomaly,
+                    },
+                    message=anomaly.get("message", "할인율이 이상치로 감지되었습니다."),
+                )
+
+
+
         with transaction.atomic():
             category = Category.objects.get(pk=data['category_id'])
             product  = Product.objects.create(
@@ -160,6 +227,8 @@ class OwnerProductView(APIView):
                 image = save_product_image(image_file, request.user)
                 ProductImg.objects.create(product_id=product, img_id=image)
 
+            record_price_log(product=product, owner=request.user)
+
         # 응답용 재조회
         product = Product.objects.prefetch_related(
             'productimg_set__img_id'
@@ -167,7 +236,10 @@ class OwnerProductView(APIView):
 
         result = OwnerProductListSerializer(product)
         return success_response(
-            data=result.data,
+            data={
+                **result.data,
+                "needs_confirm": False,  # 정상 저장 완료 명시
+            },
             message="상품이 등록되었습니다.",
             status_code=status.HTTP_201_CREATED,
         )
@@ -182,6 +254,7 @@ class OwnerProductManageView(APIView):
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
 
     def patch(self, request, store_id, product_id):
+        #request.user
         err = check_owner_type(request.user)
         if err:
             return err
@@ -206,6 +279,30 @@ class OwnerProductManageView(APIView):
             img_err = validate_image_file(image_file)
             if img_err:
                 return error_response(img_err)
+
+        force = str(request.data.get("force", "false")).lower() == "true"
+
+        # ── 이상치 체크: 가격이 변경되는 경우에만 수행 ──────────────────────
+        new_ori = data.get('product_ori_price', product.product_ori_price)
+        new_dis = data.get('product_dis_price', product.product_dis_price)
+        price_changed = (
+                'product_ori_price' in data or 'product_dis_price' in data
+        )
+
+        if not force and price_changed:
+            anomaly = _check_anomaly(
+                store_id=store.store_id,
+                ori_price=new_ori,
+                dis_price=new_dis,
+            )
+            if anomaly:
+                return success_response(
+                    data={
+                        "needs_confirm": True,
+                        "anomaly": anomaly,
+                    },
+                    message=anomaly.get("message", "할인율이 이상치로 감지되었습니다."),
+                )
 
         with transaction.atomic():
             # 스칼라 필드 업데이트
@@ -244,13 +341,22 @@ class OwnerProductManageView(APIView):
                 image = save_product_image(image_file, request.user)
                 ProductImg.objects.create(product_id=product, img_id=image)
 
+            if price_changed:
+                record_price_log(product=product, owner=request.user)
+
+
         # 응답용 재조회
         product = Product.objects.prefetch_related(
             'productimg_set__img_id'
         ).select_related('category_id').get(pk=product.pk)
 
         result = OwnerProductListSerializer(product)
-        return success_response(data=result.data, message="상품이 수정되었습니다.")
+        return success_response(data={
+                **result.data,
+                "needs_confirm": False,
+            },
+            message="상품이 수정되었습니다."
+        )
 
     def delete(self, request, store_id, product_id):
         err = check_owner_type(request.user)

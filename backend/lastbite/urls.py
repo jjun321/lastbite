@@ -18,6 +18,7 @@ urlpatterns = [
     path("cart/", include("cart.urls")),
     path("posts/", include("post.urls")),
     path("notifications/", include("notification.urls")),
+    path("anomaly/", include("product.anomaly_urls")),
     path("owner/stores/", include("store.owner_urls")),
     path("categories/", include((categories_urlpatterns, "categories"))),
 ]
