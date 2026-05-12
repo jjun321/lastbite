@@ -30,7 +30,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
   bool _isLoadingLocation = false;
 
   /// 현재 선택된 거리 필터 (km 단위, 0 = 필터 없음)
-  int _filterDistance = 3; // 기본 반경 3km
+  int _filterDistance = 300; // 기본 반경 3km
 
   @override
   void initState() {
@@ -99,8 +99,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
       // 현재 위치 가져오기
       final position = await Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
 
       setState(() {
@@ -136,8 +137,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
       final label = result == 0
           ? '전체'
           : result >= 1000
-              ? '${result ~/ 1000}km'
-              : '${result}m';
+          ? '${result ~/ 1000}km'
+          : '${result}m';
       if (mounted) _showSnackBar('반경 $label 내 가게를 표시합니다.');
     }
   }
@@ -150,6 +151,50 @@ class _HomeTabPageState extends State<HomeTabPage> {
         isFavorite: !_stores[index].isFavorite,
       );
     });
+  }
+
+  // ── AI 추천 토글 ───────────────────────────────────────
+
+  Future<void> _onAiRecommendTap() async {
+    if (_showAiRecommended) {
+      setState(() {
+        _showAiRecommended = false;
+        _stores = _stores
+            .map((s) => s.isAiRecommended
+                ? s.copyWith(isAiRecommended: false)
+                : s)
+            .toList();
+      });
+      return;
+    }
+
+    try {
+      final recommendedIds = await _repo.getRecommendedStoreIds(topN: 10);
+
+      // 반경 내 매장 목록(_stores)에 포함된 추천 매장 중 score 1순위 1개 선택
+      final storeIdSet = _stores.map((s) => s.storeId).toSet();
+      final matchedId = recommendedIds.firstWhere(
+        storeIdSet.contains,
+        orElse: () => -1,
+      );
+
+      if (matchedId == -1) {
+        if (mounted) _showSnackBar('주변에 추천 매장이 존재하지 않습니다.');
+        return;
+      }
+
+      setState(() {
+        _showAiRecommended = true;
+        _stores = _stores
+            .map((s) => s.storeId == matchedId
+                ? s.copyWith(isAiRecommended: true)
+                : (s.isAiRecommended ? s.copyWith(isAiRecommended: false) : s))
+            .toList();
+      });
+    } catch (e) {
+      print('❌ 추천 매장 조회 실패: $e');
+      if (mounted) _showSnackBar('추천 매장을 불러오지 못했습니다.');
+    }
   }
 
   void _showSnackBar(String message) {
@@ -181,34 +226,36 @@ class _HomeTabPageState extends State<HomeTabPage> {
           filterDistance: _filterDistance,
           onPresetTap: _getCurrentLocation,
           onFilterTap: _showDistanceFilter,
-          onAiRecommendTap: () =>
-              setState(() => _showAiRecommended = !_showAiRecommended),
+          onAiRecommendTap: _onAiRecommendTap,
         ),
         Expanded(
           child: _isLoadingStores
               ? const Center(child: CircularProgressIndicator())
               : _storeError != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 48, color: Colors.red),
-                          const SizedBox(height: 12),
-                          Text(_storeError!),
-                          TextButton(
-                            onPressed: () => _fetchStores(
-                              lat: _currentPosition?.latitude,
-                              lon: _currentPosition?.longitude,
-                            ),
-                            child: const Text('다시 시도'),
-                          ),
-                        ],
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
                       ),
-                    )
-                  : _isListView
-                      ? _buildListView()
-                      : _buildMapView(),
+                      const SizedBox(height: 12),
+                      Text(_storeError!),
+                      TextButton(
+                        onPressed: () => _fetchStores(
+                          lat: _currentPosition?.latitude,
+                          lon: _currentPosition?.longitude,
+                        ),
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                )
+              : _isListView
+              ? _buildListView()
+              : _buildMapView(),
         ),
       ],
     );

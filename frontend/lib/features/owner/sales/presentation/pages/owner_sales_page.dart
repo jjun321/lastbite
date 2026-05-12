@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/product_service.dart';
+import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/store_service.dart';
 import 'package:frontend/features/owner/sales/presentation/pages/owner_product_register_page.dart';
 import 'package:frontend/features/owner/sales/presentation/pages/owner_product_edit_page.dart';
 import 'package:frontend/features/owner/sales/presentation/widgets/soldout_confirm_dialog.dart';
+import 'package:frontend/features/owner/sales/presentation/widgets/owner_sales_card.dart';
 
 // 판매설정 화면
 class OwnerSalesPage extends StatefulWidget {
@@ -27,17 +29,25 @@ class _OwnerSalesPageState extends State<OwnerSalesPage> {
   }
 
   Future<void> _loadData() async {
-    final store = await StoreService.getMyStore();
-    if (store != null && mounted) {
-      final sid = store['store_id'] as int;
-      final prods = await ProductService.getProducts(sid);
-      setState(() {
-        _storeId = sid;
-        _products = prods;
-        _isLoading = false;
-      });
-    } else if (mounted) {
-      setState(() => _isLoading = false);
+    try {
+      final store = await StoreService.getMyStore();
+      if (store != null && mounted) {
+        final sid = store['store_id'] as int;
+        final prods = await ProductService.getProducts(sid);
+        if (mounted) {
+          setState(() {
+            _storeId = sid;
+            _products = prods;
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -45,128 +55,157 @@ class _OwnerSalesPageState extends State<OwnerSalesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 헤더
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '판매설정',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF222222),
+    return Container(
+      color: const Color(0xFFF8F9FA),
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      '판매설정',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF222222),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+
+              if (_isLoading)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFF4FA75A)),
                   ),
-                  GestureDetector(
-                    onTap: () => _navigateToRegister(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4FA75A),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.add, color: Colors.white, size: 18),
-                          SizedBox(width: 4),
-                          Text(
-                            '상품 추가하기',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+                )
+              else if (_products.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: Color(0xFFCCCCCC),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          '등록된 상품이 없습니다',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Color(0xFF999999),
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '상품 추가하기 버튼을 눌러 등록해보세요',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFFBBBBBB),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                )
+              else
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    color: const Color(0xFF4FA75A),
+                    child: GridView.builder(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 8,
+                        bottom: 100, // 버튼 공간 확보
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 14,
+                            crossAxisSpacing: 14,
+                            childAspectRatio: 0.72,
+                          ),
+                      itemCount: _products.length,
+                      itemBuilder: (ctx, i) {
+                        final p = _products[i];
+                        final pid = p['product_id'] as int;
+                        final isSoldOut =
+                            _soldOutIds.contains(pid) ||
+                            (p['is_available'] == false);
+                        return ProductCard(
+                          product: p,
+                          isSoldOut: isSoldOut,
+                          onEdit: () => _navigateToEdit(p),
+                          onSoldOut: () => _showSoldOutSheet(pid, i),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          // 하단 고정 버튼
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: 24,
+            child: GestureDetector(
+              onTap: _navigateToRegister,
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4FA75A),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add, color: Colors.white, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      '상품 추가하기',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            if (_isLoading)
-              const Expanded(
-                child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF4FA75A)),
-                ),
-              )
-            else if (_products.isEmpty)
-              const Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 64,
-                        color: Color(0xFFCCCCCC),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        '등록된 상품이 없습니다',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF999999),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '상품 추가하기 버튼을 눌러 등록해보세요',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFFBBBBBB),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _refresh,
-                  color: const Color(0xFF4FA75A),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 8,
-                    ),
-                    itemCount: _products.length,
-                    itemBuilder: (ctx, i) {
-                      final p = _products[i];
-                      final pid = p['product_id'] as int;
-                      final isSoldOut =
-                          _soldOutIds.contains(pid) ||
-                          (p['is_available'] == false);
-                      return _ProductCard(
-                        product: p,
-                        isSoldOut: isSoldOut,
-                        onEdit: () => _navigateToEdit(p),
-                        onSoldOut: () => _showSoldOutSheet(pid, i),
-                      );
-                    },
-                  ),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _navigateToRegister() async {
-    if (_storeId == null) return;
+    if (_storeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('가게 정보를 찾을 수 없습니다. 먼저 가게를 등록해주세요.')),
+      );
+      return;
+    }
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -207,207 +246,4 @@ class _OwnerSalesPageState extends State<OwnerSalesPage> {
   }
 }
 
-/// 상품 카드 위젯
-class _ProductCard extends StatelessWidget {
-  final Map<String, dynamic> product;
-  final bool isSoldOut;
-  final VoidCallback onEdit;
-  final VoidCallback onSoldOut;
 
-  const _ProductCard({
-    required this.product,
-    required this.isSoldOut,
-    required this.onEdit,
-    required this.onSoldOut,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final oriPrice = product['product_ori_price'] ?? 0;
-    final disPrice = product['product_dis_price'] ?? 0;
-    final rate = product['discount_rate'] ?? 0;
-    final imgUrl = product['img_url'] as String?;
-
-    return Opacity(
-      opacity: isSoldOut ? 0.45 : 1.0,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              // 상품 이미지
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: const Color(0xFFF0F4F0),
-                ),
-                child: imgUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(imgUrl, fit: BoxFit.cover),
-                      )
-                    : const Icon(
-                        Icons.fastfood_outlined,
-                        size: 32,
-                        color: Color(0xFFBBBBBB),
-                      ),
-              ),
-              const SizedBox(width: 14),
-
-              // 상품 정보
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (isSoldOut)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEEEEEE),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              '품절',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF999999),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        if (isSoldOut) const SizedBox(width: 6),
-                        Text(
-                          product['product_name'] ?? '',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF222222),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product['category_name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF999999),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        if (rate > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF4FA75A,
-                              ).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '$rate%',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF4FA75A),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        if (rate > 0) const SizedBox(width: 6),
-                        Text(
-                          '${_format(disPrice)}원',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF222222),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_format(oriPrice)}원',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFAAAAAA),
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // 액션 버튼
-              Column(
-                children: [
-                  GestureDetector(
-                    onTap: onEdit,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F4F0),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.edit_outlined,
-                        size: 18,
-                        color: Color(0xFF4FA75A),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: onSoldOut,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F0),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: Color(0xFFE53935),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _format(int n) => n.toString().replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (m) => '${m[1]},',
-  );
-}

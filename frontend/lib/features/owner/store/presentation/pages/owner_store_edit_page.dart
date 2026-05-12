@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:frontend/services/auth_service.dart' show kBaseUrl;
 import 'package:frontend/services/store_service.dart';
+import 'package:frontend/services/owner_image_cache.dart';
+import 'package:frontend/services/naver_geocoding_service.dart';
 
 // 가게 정보 수정 화면
 class OwnerStoreEditPage extends StatefulWidget {
@@ -29,6 +32,8 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
   int? _storeId;
 
   File? _storeImage;
+  bool _imagePicked = false; // 사용자가 이번 화면에서 새로 고른 경우만 true (PATCH 시 업로드)
+  String? _existingImgUrl; // 서버에 이미 등록된 매장 이미지 URL (있을 때 표시)
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -36,6 +41,15 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
   void initState() {
     super.initState();
     _loadStore();
+    _loadCachedImage();
+  }
+
+  // 로컬 캐시에 저장된 매장 이미지 불러오기 (마이페이지·계정관리와 공유)
+  Future<void> _loadCachedImage() async {
+    final cached = await OwnerImageCache.load();
+    if (cached != null && mounted) {
+      setState(() => _storeImage = cached);
+    }
   }
 
   Future<void> _loadStore() async {
@@ -45,6 +59,8 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
         _storeId = data['store_id'];
         _nameController.text = data['store_name'] ?? '';
         _addressController.text = data['store_address'] ?? '';
+        _descController.text = data['store_desc'] ?? '';
+        _existingImgUrl = data['store_img_url'] as String?;
         _storeLat = data['store_lat'] != null
             ? (data['store_lat'] as num).toDouble()
             : null;
@@ -115,13 +131,22 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
       setState(() => isOpen ? _openTime = picked : _closeTime = picked);
   }
 
+  // 사진은 _save() 시점에 multipart 로 한 번에 전송되므로 여기서는 상태만 갱신.
+  // _imagePicked 를 true 로 표시해 캐시 이미지가 아닌 새로 고른 이미지만 업로드되도록 한다.
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-    if (file != null) setState(() => _storeImage = File(file.path));
+    if (file == null) return;
+
+    setState(() {
+      _storeImage = File(file.path);
+      _imagePicked = true;
+    });
+    // 마이페이지·계정관리 프로필 사진과 동일하게 사용하기 위해 로컬 캐시에 저장
+    await OwnerImageCache.save(file.path);
   }
 
   void _toggleDate(DateTime d) {
@@ -163,6 +188,7 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
         openTime: _fmt(_openTime),
         closeTime: _fmt(_closeTime),
         offDates: offDates,
+        imageFile: _imagePicked ? _storeImage : null,
       );
 
       if (res['success'] == true) {
@@ -427,27 +453,51 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
     ),
   );
 
-  Widget _imageBox() => GestureDetector(
-    onTap: _pickImage,
-    child: Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F4F0),
+  Widget _imageBox() {
+    Widget child;
+    if (_storeImage != null) {
+      child = ClipRRect(
         borderRadius: BorderRadius.circular(16),
+        child: Image.file(_storeImage!, fit: BoxFit.cover),
+      );
+    } else if (_existingImgUrl != null && _existingImgUrl!.isNotEmpty) {
+      // 서버에 저장된 매장 이미지가 있으면 우선 표시
+      final url = _existingImgUrl!.startsWith('http')
+          ? _existingImgUrl!
+          : '$kBaseUrl$_existingImgUrl';
+      child = ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.broken_image_outlined,
+            size: 36,
+            color: Color(0xFFAAAAAA),
+          ),
+        ),
+      );
+    } else {
+      child = const Icon(
+        Icons.add_circle_outline,
+        size: 36,
+        color: Color(0xFFAAAAAA),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F4F0),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: child,
       ),
-      child: _storeImage != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.file(_storeImage!, fit: BoxFit.cover),
-            )
-          : const Icon(
-              Icons.add_circle_outline,
-              size: 36,
-              color: Color(0xFFAAAAAA),
-            ),
-    ),
-  );
+    );
+  }
 
   Widget _buildCalendar() {
     final now = DateTime.now();
@@ -572,7 +622,6 @@ class _OwnerStoreEditPageState extends State<OwnerStoreEditPage> {
 }
 
 //Naver Map 주소 검색 시트 (공유)
-// TODO: 네이버 지도 기반 API 선택 구현
 class _NaverMapSearchSheet extends StatefulWidget {
   final Function(String address, double lat, double lng) onAddressSelected;
   const _NaverMapSearchSheet({required this.onAddressSelected});
@@ -585,6 +634,43 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
   NLatLng _center = const NLatLng(37.5665, 126.9780);
   String _selectedAddress = '';
   NaverMapController? _mapCtrl;
+  bool _searching = false;
+
+  Future<void> _onSearch() async {
+    final q = _ctrl.text.trim();
+    if (q.isEmpty) return;
+    setState(() => _searching = true);
+    try {
+      final result = await NaverGeocodingService.geocode(q);
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주소를 찾을 수 없습니다.')),
+        );
+        return;
+      }
+      final lat = result['lat'] as double;
+      final lng = result['lng'] as double;
+      final address = result['address'] as String;
+      final newCenter = NLatLng(lat, lng);
+      setState(() {
+        _center = newCenter;
+        _selectedAddress = address;
+      });
+      await _mapCtrl?.updateCamera(
+        NCameraUpdate.fromCameraPosition(
+          NCameraPosition(target: newCenter, zoom: 16),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('주소 검색 오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -613,6 +699,8 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
                 Expanded(
                   child: TextField(
                     controller: _ctrl,
+                    onSubmitted: (_) => _onSearch(),
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: '주소를 검색하세요',
                       filled: true,
@@ -630,8 +718,7 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () =>
-                      setState(() => _selectedAddress = _ctrl.text),
+                  onPressed: _searching ? null : _onSearch,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4FA75A),
                     shape: RoundedRectangleBorder(
@@ -642,7 +729,16 @@ class _NaverMapSearchSheetState extends State<_NaverMapSearchSheet> {
                       vertical: 12,
                     ),
                   ),
-                  child: const Text('검색'),
+                  child: _searching
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('검색'),
                 ),
               ],
             ),

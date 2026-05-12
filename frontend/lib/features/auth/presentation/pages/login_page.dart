@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/data/models/login_model.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:frontend/services/store_service.dart';
 
 /// 아이디/비밀번호 로그인 화면
 
@@ -60,7 +61,21 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (user.isOwner) {
-          context.go('/owner-dashboard');
+          // 점주: 등록된 가게(store_id)가 있는지 조회 후 분기
+          try {
+            final myStore = await StoreService.getMyStore();
+            if (!mounted) return;
+            if (myStore == null) {
+              context.go('/owner-store-register');
+            } else {
+              context.go('/owner-dashboard');
+            }
+          } catch (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('네트워크 오류가 발생했습니다.')),
+            );
+          }
         } else {
           context.go('/home');
         }

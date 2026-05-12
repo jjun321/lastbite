@@ -1,16 +1,70 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/data/models.dart';
+import 'package:frontend/features/owner/order_manage/data/models/owner_order_model.dart';
+import 'package:frontend/services/order_service.dart';
+import 'package:intl/intl.dart';
 
-// 점주 상세보기 페이지
+class OwnerOrderDetailScreen extends StatefulWidget {
+  final int orderId;
+  const OwnerOrderDetailScreen({Key? key, required this.orderId}) : super(key: key);
 
-class OwnerOrderDetailScreen extends StatelessWidget {
-  final Order order;
+  @override
+  State<OwnerOrderDetailScreen> createState() => _OwnerOrderDetailScreenState();
+}
 
-  const OwnerOrderDetailScreen({Key? key, required this.order})
-    : super(key: key);
+class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
+  final OrderService _orderService = OrderService();
+  OwnerOrderModel? _orderDetail;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetail();
+  }
+
+  Future<void> _fetchDetail() async {
+    try {
+      final result = await _orderService.fetchOrderDetail(widget.orderId);
+      setState(() {
+        _orderDetail = result;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("상세정보 로딩 오류: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // 시간 포맷팅 함수 (T, Z 제거 및 가독성 향상)
+  String formatDateTime(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return "-";
+    try {
+      DateTime dt = DateTime.parse(dateTimeStr);
+      return DateFormat('yyyy.MM.dd. hh:mm a').format(dt);
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF4FA55B))),
+      );
+    }
+
+    if (_orderDetail == null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: Text("주문 내역을 불러올 수 없습니다.")),
+      );
+    }
+
+    final order = _orderDetail!;
+    final f = NumberFormat('#,###');
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -50,9 +104,9 @@ class OwnerOrderDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            const Text(
-              '2026.01.01. 03:22 PM',
-              style: TextStyle(
+            Text(
+              formatDateTime(order.orderDt), // 주문 일시
+              style: const TextStyle(
                 fontFamily: 'Sen',
                 fontSize: 14,
                 color: Color(0xFF6B6E82),
@@ -61,17 +115,17 @@ class OwnerOrderDetailScreen extends StatelessWidget {
             const SizedBox(height: 10),
             _buildSectionDivider(),
 
-            _buildMenuSummary(),
+            _buildMenuSummary(order),
 
-            _buildDetailItemsBox(),
+            _buildDetailItemsBox(order, f),
 
             const SizedBox(height: 30),
-            _buildPaymentSection(),
+            _buildPaymentSection(order, f),
 
             const SizedBox(height: 30),
             _buildSectionDivider(),
 
-            _buildCustomerInfoSection(),
+            _buildCustomerInfoSection(order),
             const SizedBox(height: 50),
           ],
         ),
@@ -79,7 +133,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuSummary() {
+  Widget _buildMenuSummary(OwnerOrderModel order) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(
@@ -91,6 +145,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
               color: const Color(0xFF98A8B8),
               borderRadius: BorderRadius.circular(8),
             ),
+            child: const Icon(Icons.shopping_bag_outlined, color: Colors.white),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -101,7 +156,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      order.representativeName,
+                      order.buyerName,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -109,7 +164,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      order.orderNo,
+                      'ID: ${order.orderId}',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF6B6E82),
@@ -120,7 +175,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${order.totalCountString} | ${order.price}',
+                  order.itemSummary,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF181C2E),
@@ -129,7 +184,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '픽업: ${order.pickupTime}',
+                  '픽업: ${formatDateTime(order.pickupDt)}',
                   style: const TextStyle(
                     color: Color(0xFF6B6E82),
                     fontSize: 12,
@@ -143,7 +198,11 @@ class OwnerOrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailItemsBox() {
+  Widget _buildDetailItemsBox(OwnerOrderModel order, NumberFormat f) {
+    if (order.items == null || order.items!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -152,15 +211,15 @@ class OwnerOrderDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
-        children: order.items.asMap().entries.map((entry) {
+        children: order.items!.asMap().entries.map((entry) {
           int idx = entry.key;
           var item = entry.value;
-          bool isLast = idx == order.items.length - 1;
+          bool isLast = idx == order.items!.length - 1;
 
           return _buildItemRow(
-            item.menu.name,
+            item.productName,
             '${item.quantity}개',
-            '${(item.menu.originalPrice * (1 - item.menu.discountRate / 100)).toInt() * item.quantity} 원',
+            '${f.format(item.subtotal)} 원',
             isLast: isLast,
           );
         }).toList(),
@@ -168,12 +227,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildItemRow(
-    String name,
-    String qty,
-    String price, {
-    bool isLast = false,
-  }) {
+  Widget _buildItemRow(String name, String qty, String price, {bool isLast = false}) {
     return Column(
       children: [
         Padding(
@@ -223,7 +277,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentSection() {
+  Widget _buildPaymentSection(OwnerOrderModel order, NumberFormat f) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,15 +290,8 @@ class OwnerOrderDetailScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-
-        // 전체 정가 (할인 전)
-        _buildPriceRow('정가', order.formattedOriginalPrice),
-
-        // 총 할인액
-        _buildPriceRow('할인액', order.formattedDiscountAmount),
-
-        // 최종 합계 (실 결제액)
-        _buildPriceRow('합계', order.formattedTotalPrice, isTotal: true),
+        _buildPriceRow('주문 금액', '${f.format(order.totalPrice)} 원'),
+        _buildPriceRow('합계', '${f.format(order.totalPrice)} 원', isTotal: true),
       ],
     );
   }
@@ -272,7 +319,7 @@ class OwnerOrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCustomerInfoSection() {
+  Widget _buildCustomerInfoSection(OwnerOrderModel order) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -286,25 +333,23 @@ class OwnerOrderDetailScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-
-        // 임시로 고정값
-        const _buildInfoRow('주문자', '김한성'),
-        const _buildInfoRow('연락처', '010-1234-5678'),
+        // 서버 데이터 바인딩
+        _buildInfoRowWidget('주문자', order.buyerName),
+        _buildInfoRowWidget('주문 상태', _getStatusText(order.orderStatus)),
       ],
     );
   }
 
-  Widget _buildSectionDivider() =>
-      const Divider(height: 1, color: Color(0xFFEEF2F6));
-}
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'S02': return '수락됨';
+      case 'S03': return '완료됨';
+      case 'S04': return '취소됨';
+      default: return '대기중';
+    }
+  }
 
-class _buildInfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _buildInfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildInfoRowWidget(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -322,4 +367,6 @@ class _buildInfoRow extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildSectionDivider() => const Divider(height: 1, color: Color(0xFFEEF2F6));
 }

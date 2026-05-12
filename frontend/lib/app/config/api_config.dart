@@ -49,4 +49,25 @@ class ApiConfig {
       '/users/me/locations'; // GET (저장된 위치 로그 목록), POST (위치 저장)
   static String deleteLocation(int logId) =>
       '/users/me/locations/$logId'; // DELETE (위치 삭제)
+
+  static String ownerOrders(int storeId) => '/owner/stores/$storeId/orders/';
+
+  static String ownerOrderHistory(int storeId) =>
+      '/owner/stores/$storeId/orders/history/';
+
+  static String ownerOrderDetail(int storeId, int orderId) =>
+      '/owner/stores/$storeId/orders/$orderId/';
+
+  static String ownerOrderAccept(int storeId, int orderId) =>
+      '/owner/stores/$storeId/orders/$orderId/accept/';
+
+  static String ownerOrderCancel(int storeId, int orderId) =>
+      '/owner/stores/$storeId/orders/$orderId/cancel/';
+
+  static String ownerOrderComplete(int storeId, int orderId) =>
+      '/owner/stores/$storeId/orders/$orderId/complete/';
+
+  // 추천 엔드포인트
+  static const String recommendations =
+      '/users/me/recommendations'; // GET (ML 서버 기반 매장 추천)
 }

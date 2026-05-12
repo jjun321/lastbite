@@ -1,6 +1,8 @@
 // 임시 데이터!! 데베 연결 후 삭제 예정
 
 import '../data/models.dart';
+import 'package:frontend/features/store/data/models/product_model.dart';
+import 'package:frontend/features/store/data/models/store_model.dart';
 
 
 
@@ -28,11 +30,13 @@ final List<CommunityReport> reportList = [
 
 
 // 1. 가게 정보
-final StoreInfo myStore = StoreInfo(
-  name: "소금빵 가게",
-  description: "매일 아침 직접 굽는 신선한 빵 소금빵 가게 어쩌구 이어서 가게 소개 작성",
-  address: "서울특별시 성북구 00동 000 1층 000호",
-  closingTime: "20:00",
+final StoreModel myStore = StoreModel(
+  storeId: 1,
+  storeName: "소금빵 가게",
+  storeAddress: "서울특별시 성북구 00동 000 1층 000호",
+  todayClose: "20:00",
+  isClosed: false,
+  isOffToday: false,
 );
 
 // 사용자 정보
@@ -43,13 +47,13 @@ final UserInfo currentUser = UserInfo(
 );
 
 // 2. 메뉴 목록 (기본 DB)
-final List<MenuItem> menuList = [
-  MenuItem(name: "소금빵", originalPrice: 10000, discountedPrice: 3000), // 70% 할인
-  MenuItem(name: "크루아상", originalPrice: 5000, discountedPrice: 2000), // 60% 할인
-  MenuItem(name: "단팥빵", originalPrice: 3000, discountedPrice: 1500), // 50% 할인
-  MenuItem(name: "바게트", originalPrice: 4000, discountedPrice: 800),  // 80% 할인
-  MenuItem(name: "메론빵", originalPrice: 4000, discountedPrice: 2000), // 50% 할인
-  MenuItem(name: "식빵", originalPrice: 6000, discountedPrice: 4200), // 30% 할인
+final List<ProductModel> menuList = [
+  ProductModel(productId: 1, productName: "소금빵", productOriPrice: 10000, productDisPrice: 3000, discountRate: 70, isAvailable: true),
+  ProductModel(productId: 2, productName: "크루아상", productOriPrice: 5000, productDisPrice: 2000, discountRate: 60, isAvailable: true),
+  ProductModel(productId: 3, productName: "단팥빵", productOriPrice: 3000, productDisPrice: 1500, discountRate: 50, isAvailable: true),
+  ProductModel(productId: 4, productName: "바게트", productOriPrice: 4000, productDisPrice: 800, discountRate: 80, isAvailable: true),
+  ProductModel(productId: 5, productName: "메론빵", productOriPrice: 4000, productDisPrice: 2000, discountRate: 50, isAvailable: true),
+  ProductModel(productId: 6, productName: "식빵", productOriPrice: 6000, productDisPrice: 4200, discountRate: 30, isAvailable: true),
 ];
 
 // 3. 실시간 장바구니

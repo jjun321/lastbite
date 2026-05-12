@@ -14,6 +14,7 @@ class StoreModel {
   final String? repProductName;
   final int? repProductDisPrice;
   final int? repProductDiscountRate;
+  final String? storeImgUrl;
 
   StoreModel({
     required this.storeId,
@@ -31,6 +32,7 @@ class StoreModel {
     this.repProductName,
     this.repProductDisPrice,
     this.repProductDiscountRate,
+    this.storeImgUrl,
   });
 
   factory StoreModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class StoreModel {
       repProductName: repProduct?['product_name'],
       repProductDisPrice: repProduct?['dis_price'],
       repProductDiscountRate: repProduct?['discount_rate'],
+      storeImgUrl: json['store_img_url'] as String?,
     );
   }
 
@@ -75,6 +78,7 @@ class StoreModel {
       repProductName: repProductName,
       repProductDisPrice: repProductDisPrice,
       repProductDiscountRate: repProductDiscountRate,
+      storeImgUrl: storeImgUrl,
     );
   }
 }

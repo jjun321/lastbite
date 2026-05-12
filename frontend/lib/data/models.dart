@@ -1,5 +1,7 @@
 // 임시 데이터!! 데베 연결 후 삭제 예정
 
+import 'package:frontend/features/store/data/models/product_model.dart';
+import 'package:frontend/features/store/data/models/store_model.dart';
 
 class CommunityReport {
   final String date;
@@ -15,14 +17,6 @@ class CommunityReport {
   });
 }
 
-class StoreInfo {
-  final String name;
-  final String description;
-  final String address;
-  final String closingTime;
-
-  StoreInfo({required this.name, required this.description, required this.address, required this.closingTime});
-}
 
 class UserInfo {
   final String name;
@@ -32,30 +26,14 @@ class UserInfo {
   UserInfo({required this.name, required this.phoneNumber, this.totalSavings});
 }
 
-class MenuItem {
-  final String name;
-  final int originalPrice;
-  final int discountedPrice; // 이제 할인율 대신 할인가를 직접 받습니다.
-
-  MenuItem({
-    required this.name,
-    required this.originalPrice,
-    required this.discountedPrice, // 필수값으로 변경
-  });
-
-  int get discountRate {
-    if (originalPrice == 0) return 0;
-    return ((originalPrice - discountedPrice) / originalPrice * 100).toInt();
-  }
-}
 
 class CartItem {
-  final MenuItem menu;
+  final ProductModel menu;
   int quantity;
 
   CartItem({required this.menu, this.quantity = 1});
 
-  int get totalPrice => menu.discountedPrice * quantity;
+  int get totalPrice => (menu.productDisPrice ?? 0) * quantity;
 }
 
 class Order {
@@ -77,7 +55,7 @@ class Order {
 
   // 1. 전체 정가 계산 (할인 전)
   int get totalOriginalPrice {
-    return items.fold(0, (sum, item) => sum + (item.menu.originalPrice * item.quantity));
+    return items.fold(0, (sum, item) => sum + ((item.menu.productOriPrice ?? 0) * item.quantity));
   }
 
   // 2. 최종 합계 계산 (실제 계산된 할인가 합계)
@@ -103,8 +81,8 @@ class Order {
 
   String get representativeName {
     if (items.isEmpty) return "주문 상품 없음";
-    if (items.length == 1) return items[0].menu.name;
-    return "${items[0].menu.name} 외 ${items.length - 1}건";
+    if (items.length == 1) return items[0].menu.productName;
+    return "${items[0].menu.productName} 외 ${items.length - 1}건";
   }
 
   String get totalCountString {
