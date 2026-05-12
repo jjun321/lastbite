@@ -258,11 +258,27 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
         ]}
 
     def validate_working_times(self, value):
-        try:
-            h, m = value['start_time'].split(':')
-            assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
-        except Exception:
-            raise serializers.ValidationError(f"{value}의 형식이 올바르지 않습니다. (HH:MM)")
+        start_time = value.get('start_time')
+        end_time = value.get('end_time')
+
+        if start_time is not None:
+            try:
+                h, m = start_time.split(':')
+                assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
+            except Exception:
+                raise serializers.ValidationError(
+                    f"start_time '{start_time}'의 형식이 올바르지 않습니다. (HH:MM)"
+                )
+
+        if end_time is not None:
+            try:
+                h, m = end_time.split(':')
+                assert 0 <= int(h) <= 23 and 0 <= int(m) <= 59
+            except Exception:
+                raise serializers.ValidationError(
+                    f"end_time '{end_time}'의 형식이 올바르지 않습니다. (HH:MM)"
+                )
+        return value
 
     def validate_off_dates(self, value):
         from store.utils import get_today_kst
