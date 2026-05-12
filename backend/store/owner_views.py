@@ -62,6 +62,7 @@ class OwnerStoreView(APIView):
     GET  /owner/stores/   — 내 모든 가게 목록 조회
     """
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, JSONParser]
 
     def get(self, request):
         error = check_owner_type(request.user)
@@ -80,7 +81,10 @@ class OwnerStoreView(APIView):
         if error:
             return error
 
-        serializer = OwnerStoreCreateSerializer(data=request.data)
+        serializer = OwnerStoreCreateSerializer(
+            data=request.data,
+            context={'request': request},
+        )
         if not serializer.is_valid():
             return error_response(extract_first_error(serializer.errors))
 
@@ -91,6 +95,7 @@ class OwnerStoreView(APIView):
             data={
                 'store_id': store.store_id,
                 'store_name': store.store_name,
+                'store_img_url': store.store_img_id.img_url if store.store_img_id else None,
             },
             message="가게가 등록되었습니다.",
             status_code=status.HTTP_201_CREATED,
@@ -126,7 +131,7 @@ class OwnerStoreManageView(APIView):
         if store is None:
             return error_response("가게를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
 
-        serializer = OwnerStoreUpdateSerializer(store, data=request.data, partial=True)
+        serializer = OwnerStoreUpdateSerializer(store, data=request.data, partial=True, context={'request': request})
         if not serializer.is_valid():
             return error_response(extract_first_error(serializer.errors))
 

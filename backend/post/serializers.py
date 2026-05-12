@@ -8,6 +8,8 @@ class PostResponseSerializer(serializers.ModelSerializer):
     #제보 목록/상세/생성 공통 응답 직렬화
     user_id    = serializers.IntegerField(source='user_id_id')
     user_name  = serializers.CharField(source='user_id.user_name')
+    post_lat = serializers.FloatField()
+    post_long = serializers.FloatField()
     store_id   = serializers.SerializerMethodField()
     store_name = serializers.SerializerMethodField()
     img_url    = serializers.SerializerMethodField()
