@@ -144,7 +144,7 @@ PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
 # temp reset page, needs to be changed
 FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
 
-MEDIA_URL  = "/media/"
+MEDIA_URL  = "https://joya-nonstrategical-supersmartly.ngrok-free.dev/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 #ml server setting
