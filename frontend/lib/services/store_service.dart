@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:frontend/services/auth_service.dart';
 
@@ -72,6 +73,8 @@ class StoreService {
   }
 
   // ── 가게 등록 ──
+  // imageFile 이 있으면 multipart 로, 없으면 JSON 으로 전송 (product_service 와 동일 패턴)
+  // BE 스키마: working_times = {start_time, end_time}
   static Future<Map<String, dynamic>> registerStore({
     required String storeName,
     required String storeAddress,
@@ -80,28 +83,62 @@ class StoreService {
     String storeDesc = '',
     String? openTime, // "HH:mm"
     String? closeTime, // "HH:mm"
-    List<String> offDates = const [], // ["YYYY-MM-DD", ...]
+    List<String> offDates = const [], // ["YYYY-MM-DD", ...] — 등록 API 미지원 (등록 후 별도 엔드포인트 사용)
+    File? imageFile,
   }) async {
+    final uri = Uri.parse('$_base/owner/stores/');
+    final headers = await AuthService.authHeaders();
+
+    final Map<String, dynamic>? workingTimes =
+        (openTime != null && closeTime != null)
+            ? {'start_time': openTime, 'end_time': closeTime}
+            : null;
+
+    if (imageFile != null) {
+      final request = http.MultipartRequest('POST', uri);
+      final multipartHeaders = Map<String, String>.from(headers);
+      multipartHeaders.remove('Content-Type'); // 경계자 자동 설정
+      request.headers.addAll(multipartHeaders);
+
+      request.fields['store_name'] = storeName;
+      request.fields['store_address'] = storeAddress;
+      if (storeLat != null) request.fields['store_lat'] = storeLat.toString();
+      if (storeLong != null) request.fields['store_long'] = storeLong.toString();
+      request.fields['store_desc'] = storeDesc;
+      if (workingTimes != null) {
+        request.fields['working_times'] = jsonEncode(workingTimes);
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath('image_file', imageFile.path),
+      );
+
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+      return _parseResponse(res, 'registerStore');
+    }
+
     final body = <String, dynamic>{
       'store_name': storeName,
       'store_address': storeAddress,
-      if (storeLat != null) 'store_lat': storeLat,
-      if (storeLong != null) 'store_long': storeLong,
+      'store_lat': ?storeLat,
+      'store_long': ?storeLong,
       'store_desc': storeDesc,
-      if (openTime != null) 'open_time': openTime,
-      if (closeTime != null) 'close_time': closeTime,
-      'off_dates': offDates,
+      'working_times': ?workingTimes,
     };
 
     final res = await http.post(
-      Uri.parse('$_base/owner/stores/'),
-      headers: await AuthService.authHeaders(),
+      uri,
+      headers: headers,
       body: jsonEncode(body),
     );
     return _parseResponse(res, 'registerStore');
   }
 
   // ── 가게 정보 수정 ──
+  // 백엔드는 PATCH만 받음 (PUT 사용 시 405 Method Not Allowed)
+  // imageFile 이 있으면 multipart 로, 없으면 JSON 으로 전송.
+  // BE 스키마: working_times = {start_time, end_time}, off_dates = [{off_dt, off_desc}, ...]
   static Future<Map<String, dynamic>> updateStore({
     required int storeId,
     String? storeName,
@@ -112,21 +149,60 @@ class StoreService {
     String? openTime,
     String? closeTime,
     List<String>? offDates,
+    File? imageFile,
   }) async {
+    final uri = Uri.parse('$_base/owner/stores/$storeId/');
+    final headers = await AuthService.authHeaders();
+
+    // BE 가 받는 형태로 가공
+    final Map<String, dynamic>? workingTimes =
+        (openTime != null && closeTime != null)
+            ? {'start_time': openTime, 'end_time': closeTime}
+            : null;
+    final List<Map<String, String>>? offDateDicts = offDates
+        ?.map((d) => {'off_dt': d, 'off_desc': '휴무일'})
+        .toList();
+
+    if (imageFile != null) {
+      final request = http.MultipartRequest('PATCH', uri);
+      final multipartHeaders = Map<String, String>.from(headers);
+      multipartHeaders.remove('Content-Type');
+      request.headers.addAll(multipartHeaders);
+
+      if (storeName != null) request.fields['store_name'] = storeName;
+      if (storeAddress != null) request.fields['store_address'] = storeAddress;
+      if (storeLat != null) request.fields['store_lat'] = storeLat.toString();
+      if (storeLong != null) request.fields['store_long'] = storeLong.toString();
+      if (storeDesc != null) request.fields['store_desc'] = storeDesc;
+      if (workingTimes != null) {
+        request.fields['working_times'] = jsonEncode(workingTimes);
+      }
+      if (offDateDicts != null) {
+        request.fields['off_dates'] = jsonEncode(offDateDicts);
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath('image_file', imageFile.path),
+      );
+
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+      return _parseResponse(res, 'updateStore');
+    }
+
     final body = <String, dynamic>{
-      if (storeName != null) 'store_name': storeName,
-      if (storeAddress != null) 'store_address': storeAddress,
-      if (storeLat != null) 'store_lat': storeLat,
-      if (storeLong != null) 'store_long': storeLong,
-      if (storeDesc != null) 'store_desc': storeDesc,
-      if (openTime != null) 'open_time': openTime,
-      if (closeTime != null) 'close_time': closeTime,
-      if (offDates != null) 'off_dates': offDates,
+      'store_name': ?storeName,
+      'store_address': ?storeAddress,
+      'store_lat': ?storeLat,
+      'store_long': ?storeLong,
+      'store_desc': ?storeDesc,
+      'working_times': ?workingTimes,
+      'off_dates': ?offDateDicts,
     };
 
-    final res = await http.put(
-      Uri.parse('$_base/owner/stores/$storeId/'),
-      headers: await AuthService.authHeaders(),
+    final res = await http.patch(
+      uri,
+      headers: headers,
       body: jsonEncode(body),
     );
     return _parseResponse(res, 'updateStore');

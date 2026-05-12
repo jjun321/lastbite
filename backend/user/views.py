@@ -436,7 +436,7 @@ class UserFavoriteListView(APIView):
         favorites = (
             Favorite.objects
             .filter(user_id=request.user, store_id__is_deleted=False)
-            .select_related('store_id')
+            .select_related('store_id', 'store_id__store_img_id')
             .prefetch_related(
                 'store_id__storeworkingtime_set',
                 'store_id__offdate_set',

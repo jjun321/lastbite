@@ -3,6 +3,7 @@ import 'package:frontend/features/store/data/models/store_model.dart';
 import 'package:frontend/features/store/data/repositories/store_repository_impl.dart';
 import 'package:frontend/features/consumer/order/presentation/pages/order_page.dart';
 import 'package:frontend/features/consumer/mypage/data/datasources/favorite_api.dart';
+import 'package:frontend/services/auth_service.dart' show kBaseUrl;
 
 class ShopPage extends StatefulWidget {
   final int storeId;
@@ -117,6 +118,18 @@ class _ShopPageState extends State<ShopPage> {
     );
   }
 
+  Widget _buildShopImage(StoreModel store) {
+    final raw = store.storeImgUrl;
+    if (raw == null || raw.isEmpty) return const SizedBox.shrink();
+
+    final url = raw.startsWith('http') ? raw : '$kBaseUrl$raw';
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildBody(BuildContext context, StoreModel store) {
     return Column(
       children: [
@@ -160,7 +173,7 @@ class _ShopPageState extends State<ShopPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 가게 이미지 (추후 연결)
+                // 가게 이미지
                 Container(
                   width: double.infinity,
                   height: 223,
@@ -168,10 +181,12 @@ class _ShopPageState extends State<ShopPage> {
                     horizontal: 24,
                     vertical: 10,
                   ),
+                  clipBehavior: Clip.hardEdge,
                   decoration: BoxDecoration(
                     color: const Color(0xFFC4C4C4),
                     borderRadius: BorderRadius.circular(10),
                   ),
+                  child: _buildShopImage(store),
                 ),
 
                 // 가게 이름 + 찜 하트
