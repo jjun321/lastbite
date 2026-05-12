@@ -1,3 +1,4 @@
+import json
 import uuid
 import os
 from django.conf import settings
@@ -12,6 +13,39 @@ from product.models.product import Product
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 MAX_IMG_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+class JSONStringDictField(serializers.DictField):
+    """
+    multipart/form-data 요청에서 JSON 문자열로 전달된 dict 를 자동 파싱한다.
+    DRF DictField 는 문자열을 dict 로 변환하지 못해 'not_a_dict' 로 실패하기 때문.
+    """
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except (TypeError, ValueError):
+                self.fail('not_a_dict', input_type='str')
+        return super().to_internal_value(data)
+
+
+class JSONStringDictListField(serializers.ListField):
+    """
+    multipart/form-data 요청에서 JSON 문자열로 전달된 list[dict] 를 자동 파싱한다.
+    QueryDict.getlist 가 [json_string] 형태로 꺼내오는 경우까지 처리한다.
+    """
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except (TypeError, ValueError):
+                self.fail('not_a_list', input_type='str')
+        elif isinstance(data, list) and len(data) == 1 and isinstance(data[0], str):
+            try:
+                data = json.loads(data[0])
+            except (TypeError, ValueError):
+                pass
+        return super().to_internal_value(data)
 
 def _save_store_image(image_file, user) -> Image:
     """
@@ -170,7 +204,7 @@ class StoreWorkingTimeSerializer(serializers.ModelSerializer):
 # 따라서 요청에서 영업일과 영업시간을 조합해야함
 class OwnerStoreCreateSerializer(serializers.ModelSerializer):
     # POST /owner/stores/ 가게 최초 등록
-    working_times = serializers.DictField(write_only=True, required=False)
+    working_times = JSONStringDictField(write_only=True, required=False)
     image_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
 
 
@@ -236,8 +270,8 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
         {"off_dt": "2024-05-05", "off_desc": "어린이날"}
     ]
     """
-    working_times = serializers.DictField(write_only=True, required=False)
-    off_dates = serializers.ListField(
+    working_times = JSONStringDictField(write_only=True, required=False)
+    off_dates = JSONStringDictListField(
         child=serializers.DictField(), write_only=True, required=False
     )
     image_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
