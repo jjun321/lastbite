@@ -20,7 +20,6 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // 생성 시점에 즉시 초기값 설정
     _currentOrder = widget.order;
     _loadDetailData();
   }
@@ -141,7 +140,6 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
   }
 
   Widget _buildStoreSummary() {
-    // 경고 해결: sum! -> sum (초기값 0에서 시작하므로 null일 수 없음)
     final items = _currentOrder.items ?? [];
     final totalCount = items.fold(0, (sum, i) => sum + i.quantity);
 
@@ -186,6 +184,7 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
     );
   }
 
+  // 메뉴 상세 섹션 수정 (오버플로우 방지)
   Widget _buildMenuDetailSection() {
     final items = _currentOrder.items;
 
@@ -211,18 +210,41 @@ class _OwnerOrderDetailScreenState extends State<OwnerOrderDetailScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // 1. 메뉴명과 개수를 묶어서 Expanded로 감싸 왼쪽 영역을 차지하게 함
                     Expanded(
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(item.productName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF181C2E))),
+                          Flexible(
+                            child: Text(
+                              item.productName,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF181C2E)),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          Text('${item.quantity}개', style: const TextStyle(fontSize: 13, color: Color(0xFF6B6E82))),
+                          Text(
+                            '${item.quantity}개',
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF6B6E82)),
+                          ),
                         ],
                       ),
                     ),
-                    Text('${_formatPrice(item.subtotal)}원', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF181C2E))),
+                    const SizedBox(width: 12),
+                    // 2. 가격은 Expanded 밖에 두어 오른쪽 끝에 정렬됨
+                    Text(
+                      '${_formatPrice(item.subtotal)}원',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF181C2E)),
+                    ),
                   ],
                 ),
               ),

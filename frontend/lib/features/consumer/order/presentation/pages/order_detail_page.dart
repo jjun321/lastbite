@@ -100,7 +100,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       child: _buildPaymentSection(),
                     ),
 
-                    // ✅ 주문자 정보를 결제 금액 아래로 이동
                     const SizedBox(height: 32),
                     _buildSectionTitle('주문자 정보'),
                     _buildUserInfoSection(),
@@ -240,7 +239,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(10)),
       child: Column(
         children: _currentOrder.items.map((item) {
           final isLast = item == _currentOrder.items.last;
@@ -249,20 +250,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
+                    // 1. 메뉴명과 개수 영역 (왼쪽 정렬)
+                    Expanded( // 이 Expanded가 오른쪽 가격을 끝으로 밀어주는 역할을 합니다.
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(item.productName, style: const TextStyle(fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF181C2E))),
-                          const SizedBox(width: 14),
-                          Container(width: 1, height: 16, color: const Color(0xFFCACCDA)),
-                          const SizedBox(width: 14),
-                          Text('${item.quantity}개', style: const TextStyle(fontFamily: 'Sen', fontSize: 12, color: Color(0xFF6B6E82))),
+                          Flexible(
+                            child: Text(
+                              item.productName,
+                              style: const TextStyle(
+                                  fontFamily: 'Sen',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF181C2E)),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8), // 메뉴명과 개수 사이 최소 간격
+                          Text(
+                            '${item.quantity}개',
+                            style: const TextStyle(
+                                fontFamily: 'Sen',
+                                fontSize: 12,
+                                color: Color(0xFF6B6E82)),
+                          ),
                         ],
                       ),
                     ),
-                    Text('${_formatPrice(item.subtotal)}원', style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0xFF828282))),
+                    const SizedBox(width: 12),
+                    // 2. 가격 영역 (오른쪽 정렬)
+                    Text(
+                      '${_formatPrice(item.subtotal)}원',
+                      style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          color: Color(0xFF828282)),
+                    ),
                   ],
                 ),
               ),
@@ -289,7 +314,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: 12),
         _buildPriceRow('합계', '${_formatPrice(_currentOrder.totalPrice)}원', isTotal: true),
         const SizedBox(height: 12),
-        const Divider(height: 1, color: Color(0xFFEEF2F6)), // ✅ 합계 아래로 이동된 선
+        const Divider(height: 1, color: Color(0xFFEEF2F6)),
       ],
     );
   }

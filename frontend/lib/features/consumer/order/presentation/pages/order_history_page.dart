@@ -69,8 +69,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
               final allOrders = snapshot.data ?? [];
 
-              // ✅ [수정된 로직] 절약한 금액 계산
-              // 취소된 주문(S04)을 제외한 모든 주문의 (정가 합계 - 실제 결제 금액)을 합산합니다.
               final int totalSavedAmount = allOrders.where((order) => order.orderStatus != 'S04').fold(0, (sum, order) {
                 final int orderOriPriceSum = order.items.fold(0, (iSum, item) => iSum + (item.productOriPrice * item.quantity));
                 final int savedAmount = orderOriPriceSum - order.totalPrice;
@@ -260,6 +258,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 60, height: 60,
@@ -293,16 +292,22 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       ],
                     ),
                     const SizedBox(height: 6),
+                    // ✅ 왼쪽 정렬을 위해 Wrap 또는 Row 설정 변경
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.start, // 왼쪽 정렬 고정
                       children: [
-                        Text(
-                          displayMenuName,
-                          style: const TextStyle(
-                            fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.bold,
+                        Flexible( // Expanded 대신 Flexible 사용: 짧으면 콘텐츠만큼만 차지
+                          child: Text(
+                            displayMenuName,
+                            style: const TextStyle(
+                              fontFamily: 'Sen', fontSize: 13, fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          padding: EdgeInsets.symmetric(horizontal: 6),
                           child: Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
                         ),
                         Text(
@@ -312,7 +317,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                           ),
                         ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          padding: EdgeInsets.symmetric(horizontal: 6),
                           child: Text('|', style: TextStyle(color: Color(0xFFCACCDA))),
                         ),
                         Text(
@@ -323,17 +328,17 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '픽업 ${order.pickupDt.toString().substring(0, 16).replaceAll('T', ' ')}',
+                      style: const TextStyle(
+                        fontFamily: 'Sen', fontSize: 12, color: Color(0xFF6B6E82),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '픽업 ${order.pickupDt.toString().substring(0, 16).replaceAll('T', ' ')}',
-            style: const TextStyle(
-              fontFamily: 'Sen', fontSize: 14, color: Color(0xFF6B6E82),
-            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
