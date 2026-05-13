@@ -153,6 +153,50 @@ class _HomeTabPageState extends State<HomeTabPage> {
     });
   }
 
+  // ── AI 추천 토글 ───────────────────────────────────────
+
+  Future<void> _onAiRecommendTap() async {
+    if (_showAiRecommended) {
+      setState(() {
+        _showAiRecommended = false;
+        _stores = _stores
+            .map((s) => s.isAiRecommended
+                ? s.copyWith(isAiRecommended: false)
+                : s)
+            .toList();
+      });
+      return;
+    }
+
+    try {
+      final recommendedIds = await _repo.getRecommendedStoreIds(topN: 10);
+
+      // 반경 내 매장 목록(_stores)에 포함된 추천 매장 중 score 1순위 1개 선택
+      final storeIdSet = _stores.map((s) => s.storeId).toSet();
+      final matchedId = recommendedIds.firstWhere(
+        storeIdSet.contains,
+        orElse: () => -1,
+      );
+
+      if (matchedId == -1) {
+        if (mounted) _showSnackBar('주변에 추천 매장이 존재하지 않습니다.');
+        return;
+      }
+
+      setState(() {
+        _showAiRecommended = true;
+        _stores = _stores
+            .map((s) => s.storeId == matchedId
+                ? s.copyWith(isAiRecommended: true)
+                : (s.isAiRecommended ? s.copyWith(isAiRecommended: false) : s))
+            .toList();
+      });
+    } catch (e) {
+      print('❌ 추천 매장 조회 실패: $e');
+      if (mounted) _showSnackBar('추천 매장을 불러오지 못했습니다.');
+    }
+  }
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -182,8 +226,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
           filterDistance: _filterDistance,
           onPresetTap: _getCurrentLocation,
           onFilterTap: _showDistanceFilter,
-          onAiRecommendTap: () =>
-              setState(() => _showAiRecommended = !_showAiRecommended),
+          onAiRecommendTap: _onAiRecommendTap,
         ),
         Expanded(
           child: _isLoadingStores

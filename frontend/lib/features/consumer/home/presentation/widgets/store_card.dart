@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/store/data/models/store_model.dart';
+import 'package:frontend/services/auth_service.dart' show kBaseUrl;
 
 class StoreCard extends StatelessWidget {
   final StoreModel store;
@@ -7,6 +8,29 @@ class StoreCard extends StatelessWidget {
   final VoidCallback? onFavoriteTap;
 
   const StoreCard({super.key, required this.store, this.onTap, this.onFavoriteTap});
+
+  Widget _buildStoreImage() {
+    final raw = store.storeImgUrl;
+    if (raw == null || raw.isEmpty) return _imagePlaceholder();
+
+    final url = raw.startsWith('http') ? raw : '$kBaseUrl$raw';
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+    );
+  }
+
+  Widget _imagePlaceholder() => Container(
+    color: const Color(0xFFE0E0E0),
+    child: const Center(
+      child: Icon(
+        Icons.storefront_outlined,
+        size: 48,
+        color: Color(0xFFBDBDBD),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -29,22 +53,15 @@ class StoreCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// ─── 가게 이미지 영역 ───
-            Container(
-              height: 160,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE0E0E0),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
-              child: const Center(
-                child: Icon(
-                  Icons.storefront_outlined,
-                  size: 48,
-                  color: Color(0xFFBDBDBD),
-                ),
+              child: SizedBox(
+                height: 160,
+                width: double.infinity,
+                child: _buildStoreImage(),
               ),
             ),
 

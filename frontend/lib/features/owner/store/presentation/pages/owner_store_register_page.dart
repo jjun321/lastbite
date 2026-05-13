@@ -81,14 +81,15 @@ class _OwnerStoreRegisterPageState extends State<OwnerStoreRegisterPage> {
   }
 
   // ── 이미지 선택 ──
+  // 사진은 _save() 시점에 multipart 로 한 번에 전송되므로 여기서는 상태만 갱신.
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) {
-      setState(() => _storeImage = File(file.path));
-      // 마이페이지·계정관리 프로필 사진과 동일하게 사용하기 위해 로컬 캐시에 저장
-      await OwnerImageCache.save(file.path);
-    }
+    if (file == null) return;
+
+    setState(() => _storeImage = File(file.path));
+    // 마이페이지·계정관리 프로필 사진과 동일하게 사용하기 위해 로컬 캐시에 저장
+    await OwnerImageCache.save(file.path);
   }
 
   // ── 달력 날짜 토글 ──
@@ -128,6 +129,7 @@ class _OwnerStoreRegisterPageState extends State<OwnerStoreRegisterPage> {
         openTime:     _fmt(_openTime),
         closeTime:    _fmt(_closeTime),
         offDates:     offDates,
+        imageFile:    _storeImage,
       );
 
       if (res['success'] == true) {
