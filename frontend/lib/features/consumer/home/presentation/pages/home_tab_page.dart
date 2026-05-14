@@ -143,16 +143,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
     }
   }
 
-  // ── 찜 토글 ───────────────────────────────────────────
-
-  void _toggleFavorite(int index) {
-    setState(() {
-      _stores[index] = _stores[index].copyWith(
-        isFavorite: !_stores[index].isFavorite,
-      );
-    });
-  }
-
   // ── AI 추천 토글 ───────────────────────────────────────
 
   Future<void> _onAiRecommendTap() async {
@@ -160,9 +150,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
       setState(() {
         _showAiRecommended = false;
         _stores = _stores
-            .map((s) => s.isAiRecommended
-                ? s.copyWith(isAiRecommended: false)
-                : s)
+            .map(
+              (s) => s.isAiRecommended ? s.copyWith(isAiRecommended: false) : s,
+            )
             .toList();
       });
       return;
@@ -186,9 +176,13 @@ class _HomeTabPageState extends State<HomeTabPage> {
       setState(() {
         _showAiRecommended = true;
         _stores = _stores
-            .map((s) => s.storeId == matchedId
-                ? s.copyWith(isAiRecommended: true)
-                : (s.isAiRecommended ? s.copyWith(isAiRecommended: false) : s))
+            .map(
+              (s) => s.storeId == matchedId
+                  ? s.copyWith(isAiRecommended: true)
+                  : (s.isAiRecommended
+                        ? s.copyWith(isAiRecommended: false)
+                        : s),
+            )
             .toList();
       });
     } catch (e) {
@@ -271,7 +265,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
       itemBuilder: (context, index) {
         return StoreCard(
           store: _stores[index],
-          onFavoriteTap: () => _toggleFavorite(index),
           onTap: () {
             Navigator.push(
               context,

@@ -5,9 +5,12 @@ import 'package:frontend/services/auth_service.dart' show kBaseUrl;
 class StoreCard extends StatelessWidget {
   final StoreModel store;
   final VoidCallback? onTap;
-  final VoidCallback? onFavoriteTap;
 
-  const StoreCard({super.key, required this.store, this.onTap, this.onFavoriteTap});
+  const StoreCard({
+    super.key,
+    required this.store,
+    this.onTap,
+  });
 
   Widget _buildStoreImage() {
     final raw = store.storeImgUrl;
@@ -84,18 +87,6 @@ class StoreCard extends StatelessWidget {
                             color: Color(0xFF222222),
                           ),
                           overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: onFavoriteTap,
-                        child: Icon(
-                          store.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: store.isFavorite
-                              ? const Color(0xFFEF5350)
-                              : const Color(0xFFBDBDBD),
-                          size: 24,
                         ),
                       ),
                     ],
