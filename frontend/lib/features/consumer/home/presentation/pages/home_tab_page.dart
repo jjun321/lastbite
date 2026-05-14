@@ -35,8 +35,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
   @override
   void initState() {
     super.initState();
-    // 시작 시 현재 위치를 가져오고 매장 목록 조회
-    _getCurrentLocation();
+    // 시작 시 위치 없이 전체 매장 조회
+    _fetchStores();
   }
 
   // ── API 호출 ──────────────────────────────────────────
@@ -142,6 +142,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       if (mounted) _showSnackBar('반경 $label 내 가게를 표시합니다.');
     }
   }
+
   // ── AI 추천 토글 ───────────────────────────────────────
 
   Future<void> _onAiRecommendTap() async {
@@ -286,6 +287,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       showAiRecommended: _showAiRecommended,
       currentPosition: _currentPosition,
       onSelectTap: () {
+        // TODO: 선택된 마커의 storeId로 교체
         if (_stores.isNotEmpty) {
           Navigator.push(
             context,
