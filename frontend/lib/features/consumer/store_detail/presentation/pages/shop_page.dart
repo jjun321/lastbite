@@ -424,7 +424,7 @@ class _ShopPageState extends State<ShopPage> {
           ),
         ),
 
-        // 주문하기 버튼
+        // 예약하기 버튼
         Padding(
           padding: const EdgeInsets.all(24.0),
           child: ElevatedButton(
@@ -450,7 +450,7 @@ class _ShopPageState extends State<ShopPage> {
               ),
             ),
             child: Text(
-              store.isClosed || store.isOffToday ? '현재 주문 불가' : '주문하기',
+              store.isClosed || store.isOffToday ? '현재 주문 불가' : '예약하기',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
