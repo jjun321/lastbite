@@ -49,6 +49,8 @@ class StoreModel {
           : null,
       isClosed: json['is_closed'] ?? false,
       isOffToday: json['is_off_today'] ?? false,
+      isFavorite: json['is_favorite'] ?? false,
+      isAiRecommended: json['is_ai_recommended'] ?? false,
       todayOpen: json['today_open'],
       todayClose: json['today_close'],
       distanceKm: json['distance_km'] != null
