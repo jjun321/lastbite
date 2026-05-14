@@ -35,8 +35,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
   @override
   void initState() {
     super.initState();
-    // 시작 시 위치 없이 전체 매장 조회
-    _fetchStores();
+    // 시작 시 현재 위치를 가져오고 매장 목록 조회
+    _getCurrentLocation();
   }
 
   // ── API 호출 ──────────────────────────────────────────
@@ -142,17 +142,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
       if (mounted) _showSnackBar('반경 $label 내 가게를 표시합니다.');
     }
   }
-
-  // ── 찜 토글 ───────────────────────────────────────────
-
-  void _toggleFavorite(int index) {
-    setState(() {
-      _stores[index] = _stores[index].copyWith(
-        isFavorite: !_stores[index].isFavorite,
-      );
-    });
-  }
-
   // ── AI 추천 토글 ───────────────────────────────────────
 
   Future<void> _onAiRecommendTap() async {
@@ -160,9 +149,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
       setState(() {
         _showAiRecommended = false;
         _stores = _stores
-            .map((s) => s.isAiRecommended
-                ? s.copyWith(isAiRecommended: false)
-                : s)
+            .map(
+              (s) => s.isAiRecommended ? s.copyWith(isAiRecommended: false) : s,
+            )
             .toList();
       });
       return;
@@ -186,9 +175,13 @@ class _HomeTabPageState extends State<HomeTabPage> {
       setState(() {
         _showAiRecommended = true;
         _stores = _stores
-            .map((s) => s.storeId == matchedId
-                ? s.copyWith(isAiRecommended: true)
-                : (s.isAiRecommended ? s.copyWith(isAiRecommended: false) : s))
+            .map(
+              (s) => s.storeId == matchedId
+                  ? s.copyWith(isAiRecommended: true)
+                  : (s.isAiRecommended
+                        ? s.copyWith(isAiRecommended: false)
+                        : s),
+            )
             .toList();
       });
     } catch (e) {
@@ -271,7 +264,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
       itemBuilder: (context, index) {
         return StoreCard(
           store: _stores[index],
-          onFavoriteTap: () => _toggleFavorite(index),
           onTap: () {
             Navigator.push(
               context,
@@ -294,7 +286,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
       showAiRecommended: _showAiRecommended,
       currentPosition: _currentPosition,
       onSelectTap: () {
-        // TODO: 선택된 마커의 storeId로 교체
         if (_stores.isNotEmpty) {
           Navigator.push(
             context,

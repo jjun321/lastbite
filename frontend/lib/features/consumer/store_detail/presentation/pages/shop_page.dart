@@ -58,7 +58,7 @@ class _ShopPageState extends State<ShopPage> {
       }
     }
 
-  if (mounted) setState(() => _isTogglingFavorite = false);
+    if (mounted) setState(() => _isTogglingFavorite = false);
   }
 
   /// 네이버 지도 열기
@@ -73,15 +73,15 @@ class _ShopPageState extends State<ShopPage> {
     try {
       final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('네이버 지도를 열 수 없습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('네이버 지도를 열 수 없습니다.')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('네이버 지도를 열 수 없습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('네이버 지도를 열 수 없습니다.')));
       }
     }
   }
@@ -236,24 +236,13 @@ class _ShopPageState extends State<ShopPage> {
                       // 찜 하트 버튼
                       GestureDetector(
                         onTap: () => _toggleFavorite(store),
-                        child: _isTogglingFavorite
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFFEF5350),
-                                ),
-                              )
-                            : Icon(
-                                _isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: _isFavorite
-                                    ? const Color(0xFFEF5350)
-                                    : const Color(0xFFBDBDBD),
-                                size: 28,
-                              ),
+                        child: Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: _isFavorite
+                              ? const Color(0xFFEF5350)
+                              : const Color(0xFFBDBDBD),
+                          size: 28,
+                        ),
                       ),
                     ],
                   ),
@@ -389,18 +378,26 @@ class _ShopPageState extends State<ShopPage> {
                         ? NaverMap(
                             options: NaverMapViewOptions(
                               initialCameraPosition: NCameraPosition(
-                                target: NLatLng(store.storeLat!, store.storeLon!),
+                                target: NLatLng(
+                                  store.storeLat!,
+                                  store.storeLon!,
+                                ),
                                 zoom: 15,
                               ),
                               locationButtonEnable: false,
-                              scrollGesturesEnable: false, // 상세페이지에서는 고정된 지도가 가독성이 좋음
+                              scrollGesturesEnable:
+                                  false, // 상세페이지에서는 고정된 지도가 가독성이 좋음
                               zoomGesturesEnable: false,
-                              consumeSymbolTapEvents: false, // 클릭 이벤트가 부모(GestureDetector)로 전달되도록
+                              consumeSymbolTapEvents:
+                                  false, // 클릭 이벤트가 부모(GestureDetector)로 전달되도록
                             ),
                             onMapReady: (controller) {
                               final marker = NMarker(
                                 id: 'store_${store.storeId}',
-                                position: NLatLng(store.storeLat!, store.storeLon!),
+                                position: NLatLng(
+                                  store.storeLat!,
+                                  store.storeLon!,
+                                ),
                                 caption: NOverlayCaption(text: store.storeName),
                               );
                               controller.addOverlay(marker);
@@ -412,7 +409,10 @@ class _ShopPageState extends State<ShopPage> {
                               children: [
                                 Icon(Icons.location_off, color: Colors.grey),
                                 SizedBox(height: 8),
-                                Text('위치 정보가 없습니다.', style: TextStyle(color: Colors.grey)),
+                                Text(
+                                  '위치 정보가 없습니다.',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                               ],
                             ),
                           ),
