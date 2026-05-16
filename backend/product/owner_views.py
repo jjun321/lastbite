@@ -377,3 +377,40 @@ class OwnerProductManageView(APIView):
             data={'product_id': product_id},
             message="상품이 삭제되었습니다.",
         )
+
+class OwnerProductSoldOutView(APIView):
+    """
+    PATCH /owner/stores/{store_id}/products/{product_id}/soldout/
+    품절 처리 — product_count를 0으로 설정
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, store_id, product_id):
+        err = check_owner_type(request.user)
+        if err:
+            return err
+
+        store = get_owner_store(request.user, store_id)
+        if store is None:
+            return error_response("가게를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
+
+        product = get_owner_product(store, product_id)
+        if product is None:
+            return error_response("상품을 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
+
+        if product.product_count == 0:
+            return error_response("이미 품절 처리된 상품입니다.", status_code=status.HTTP_400_BAD_REQUEST)
+
+        product.product_count = 0
+        product.save(update_fields=['product_count'])
+
+        return success_response(
+            data={
+                'product_id':    product.product_id,
+                'product_name':  product.product_name,
+                'product_count': 0,
+                'is_available':  False,
+            },
+            message="품절 처리되었습니다.",
+        )
+

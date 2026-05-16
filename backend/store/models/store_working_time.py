@@ -9,6 +9,7 @@ class StoreWorkingTime(models.Model):
     working_day = models.TextField(db_comment="매장 운영 요일", db_column="working_day", max_length=10)
     start_time = models.TimeField(db_comment="매장 운영 시작 시간", db_column="start_time", null=False)
     end_time = models.TimeField(db_comment="매장 마감 시간", db_column='end_time', null=False)
+    end_day_offset = models.SmallIntegerField(db_comment="종료 요일 오프셋 (0=당일, 1=익일)", db_column='end_day_offset', default=0)
 
     class Meta:
         db_table = "store_working_time"
