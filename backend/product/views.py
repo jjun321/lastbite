@@ -5,11 +5,10 @@ import urllib.error
 from django.conf import settings
 
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from common.response import success_response, error_response
+from common.response import success_response, error_response, extract_first_error
 from store.models.store import Store
 from store.utils import haversine_km
 from product.models.product import Product
@@ -75,12 +74,6 @@ def _build_bounding_box_filter(lat, lon, radius):
         'store_id__store_long__lte': lon + lon_delta,
     }
 
-def api_response(success, message, data=None):
-    res = {'success': success, 'message': message}
-    if data is not None:
-        res['data'] = data
-    return res
-
 #store의 뷰에 두면 store 가 product의 각종 상세 필드 알아야함. 시리얼라이저의 로직도 product의 필드에 의존하기에 product에 둠
 class StoreProductListView(APIView):
     #GET /stores/{store_id}/products/
@@ -91,13 +84,13 @@ class StoreProductListView(APIView):
         try:
             Store.objects.get(pk=store_id, is_deleted=False)
         except Store.DoesNotExist:
-            return Response(api_response(False, "RES_001"), status=status.HTTP_404_NOT_FOUND)
+            return error_response("매장을 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
 
         try:
             page = max(0, int(request.query_params.get('page', 0)))
             size = min(int(request.query_params.get('size', 20)), MAX_PAGE_SIZE)
         except ValueError:
-            return Response(api_response(False, "page/size 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
+            return error_response("page/size 값이 올바르지 않습니다.")
 
         category_id = request.query_params.get('category_id')
         sort = request.query_params.get('sort', 'default')
@@ -114,7 +107,7 @@ class StoreProductListView(APIView):
             try:
                 qs = qs.filter(category_id=int(category_id))
             except ValueError:
-                return Response(api_response(False, "category_id 값이 올바르지 않습니다."), status=status.HTTP_400_BAD_REQUEST)
+                return error_response("category_id 값이 올바르지 않습니다.")
 
         # ── 정렬 처리 ─────────────────────────────────────────────────────────
         if sort == 'price_asc':
@@ -137,13 +130,13 @@ class StoreProductListView(APIView):
             )
             total  = len(products)
             paged  = products[page * size:(page + 1) * size]
-            return Response(api_response(True, "성공", {
+            return success_response(data={
                 'total':    total,
                 'page':     page,
                 'size':     size,
                 'sort':     sort,
                 'products': ProductListSerializer(paged, many=True).data,
-            }), status=status.HTTP_200_OK)
+            })
 
         elif sort == 'ordered':
             # ── 주문이력 기반 상단 노출 ────────────────────────────────────────
@@ -172,13 +165,13 @@ class StoreProductListView(APIView):
 
                 total  = len(products)
                 paged  = products[page * size:(page + 1) * size]
-                return Response(api_response(True, "성공", {
+                return success_response(data={
                     'total':    total,
                     'page':     page,
                     'size':     size,
                     'sort':     sort,
                     'products': ProductListSerializer(paged, many=True).data,
-                }), status=status.HTTP_200_OK)
+                })
 
         else:
             # default — 등록순
@@ -188,32 +181,32 @@ class StoreProductListView(APIView):
         paged = qs[page * size:(page + 1) * size]
 
         serializer = ProductListSerializer(paged, many=True)
-        return Response(api_response(True, "성공", {
+        return success_response(data={
             'total': total,
             'page': page,
             'size': size,
             'sort': sort,
             'products': serializer.data,
-        }), status=status.HTTP_200_OK)
+        })
 
-class CategoryListView(APIView) :
+class CategoryListView(APIView):
     permission_classes = [IsAuthenticated]
     # GET /stores/categories/
     def get(self, request):
         qs = Category.objects.filter(is_deleted=False)
         serializer = CategoryListSerializer(qs, many=True)
-        return Response(api_response(True, "성공", serializer.data), status=status.HTTP_200_OK)
+        return success_response(data=serializer.data)
 
-class CategoryDetailView(APIView) :
+class CategoryDetailView(APIView):
     permission_classes = [IsAuthenticated]
     # GET /stores/categories/{category_id}
     def get(self, request, category_id):
         try:
             qs = Category.objects.filter(category_id=category_id, is_deleted=False)
             serializer = CategoryListSerializer(qs, many=True)
-            return Response(api_response(True, "성공", serializer.data), status=status.HTTP_200_OK)
+            return success_response(data=serializer.data)
         except Category.DoesNotExist:
-            return Response(api_response(False, "RES_001"), status=status.HTTP_404_NOT_FOUND)
+            return error_response("카테고리를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
 
 
 class ProductSearchView(APIView):
