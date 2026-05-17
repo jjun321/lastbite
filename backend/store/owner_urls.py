@@ -10,6 +10,7 @@ from .owner_views import (
 from product.owner_views import (
     OwnerProductView,
     OwnerProductManageView,
+    OwnerProductSoldOutView,
 )
 from order.owner_views import (
     OwnerOrderIncomingView,
@@ -32,6 +33,7 @@ urlpatterns = [
     path('<int:store_id>/working-times/<int:working_time_id>/', OwnerWorkingTimeManageView.as_view(), name='owner-working-time-manage'),
     path('<int:store_id>/products/', OwnerProductView.as_view(), name='owner-product-list-create'),
     path('<int:store_id>/products/<int:product_id>/', OwnerProductManageView.as_view(), name='owner-product-manage'),
+    path('<int:store_id>/products/<int:product_id>/soldout/', OwnerProductSoldOutView.as_view(), name='owner-product-soldout'),
     path('<int:store_id>/orders/', OwnerOrderIncomingView.as_view(), name='owner-order-incoming'),
     path('<int:store_id>/orders/history/', OwnerOrderHistoryView.as_view(), name='owner-order-history'),
     path('<int:store_id>/orders/<int:order_id>/', OwnerOrderDetailView.as_view(), name='owner-order-detail'),
