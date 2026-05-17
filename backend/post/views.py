@@ -82,13 +82,35 @@ class PostListView(APIView):
             store_id = int(request.query_params.get('store_id')) if 'store_id' in request.query_params else None
         except ValueError:
             return error_response(message="store_id 값이 올바르지 않습니다.")
+        try:
+            product_id = int(request.query_params.get('product_id')) \
+                if 'product_id' in request.query_params else None
+        except ValueError:
+            return error_response(message="product_id 값이 올바르지 않습니다.")
 
-
+        # sort 파라미터 파싱 (최신순, 주문한 상품)
+        sort = request.query_params.get('sort', 'latest')  # latest | ordered
         qs = Post.objects.filter(is_deleted=False).select_related(
-            'user_id', 'img_id', 'store_id'
+            'user_id', 'img_id', 'store_id', 'product_id'
         )
+
         if store_id is not None:
             qs = qs.filter(store_id=store_id)
+        if product_id is not None:
+            qs = qs.filter(product_id=product_id)
+
+        if sort == 'ordered':
+            from order.models.orderProdList import OrderProdList
+            ordered_product_ids = list(
+                OrderProdList.objects
+                .filter(
+                    order_id__user_id=request.user,
+                    order_id__order_status='S03',
+                )
+                .values_list('product_id_id', flat=True)
+                .distinct()
+            )
+            qs = qs.filter(product_id__in=ordered_product_ids)
 
         if lat is not None and long is not None:
             # 1차: 바운딩 박스로 DB 범위 축소
@@ -158,6 +180,21 @@ class PostListView(APIView):
                     status_code=status.HTTP_404_NOT_FOUND,
                 )
 
+        product = None
+        product_id_param = request.data.get('product_id')
+        if product_id_param:
+            try:
+                from product.models.product import Product
+                product = Product.objects.get(
+                    product_id=int(product_id_param),
+                    is_deleted=False,
+                )
+            except Product.DoesNotExist:
+                return error_response(
+                    message="존재하지 않는 상품입니다.",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                )
+
         # 이미지 업로드 처리 (optional)
         image_obj = None
         image_file = request.FILES.get('image_file')
@@ -180,6 +217,7 @@ class PostListView(APIView):
                 post_lat=post_lat,
                 post_long=post_long,
                 store_id=store,
+                product_id=product,
                 is_deleted=False,
             )
 

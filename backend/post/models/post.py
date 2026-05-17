@@ -44,6 +44,14 @@ class Post(models.Model):
         db_comment="매장 ID", db_column='store_id',
         null=True, blank=True
     )
+    product_id = models.ForeignKey(
+        'product.Product',
+        on_delete=models.SET_NULL,
+        db_comment="연관 상품 ID",
+        db_column='product_id',
+        null=True, blank=True,
+        related_name='posts',
+    )
 
     class Meta:
         db_table = "post"

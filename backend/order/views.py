@@ -194,3 +194,78 @@ class OrderItemDetailView(APIView):
 
         serializer = OrderItemDetailSerializer(order_item)
         return success_response(data=serializer.data)
+
+class OrderReorderView(APIView):
+    """
+    POST /orders/{order_id}/reorder/
+
+    이전 주문과 동일한 장바구니 내용을 Redis에 복제.
+    프론트는 이 응답을 받아 예약 확인 전 단계(장바구니 화면)로 이동.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        import json
+        import uuid
+        import redis
+        from django.conf import settings
+
+        order = get_order_or_404(order_id, request.user)
+        if not order:
+            return error_response(
+                message="주문을 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        items = order.orderprodlist_set.select_related('product_id').all()
+        if not items:
+            return error_response(message="주문 상품이 없습니다.")
+
+        # ── 현재 재고 및 매장 상태 확인 ─────────────────────────────────────
+        store = order.store_id
+        if store.is_deleted or store.is_closed:
+            return error_response("해당 매장이 현재 운영 중이지 않습니다.")
+
+        cart_items = []
+        for item in items:
+            product = item.product_id
+            if product.is_deleted:
+                continue   # 삭제된 상품은 재주문 목록에서 제외
+            if (product.product_count or 0) <= 0:
+                continue   # 품절 상품 제외
+
+            cart_items.append({
+                "cart_item_id":      str(uuid.uuid4()),
+                "product_id":        product.product_id,
+                "product_name":      product.product_name,
+                "product_dis_price": product.product_dis_price,
+                "product_ori_price": product.product_ori_price,
+                "quantity":          item.order_prod_count,
+                "product_qty":       product.product_count,
+                "subtotal":          product.product_dis_price * item.order_prod_count,
+            })
+
+        if not cart_items:
+            return error_response("재주문 가능한 상품이 없습니다. (품절 또는 삭제된 상품)")
+
+        # ── Redis 장바구니에 덮어씌우기 ─────────────────────────────────────
+        r         = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        cart_key  = f"cart:{request.user.user_id}"
+        CART_TTL  = 60 * 60 * 24 * 7  # 7일
+
+        cart_data = {
+            "store_id":   store.store_id,
+            "store_name": store.store_name,
+            "items":      cart_items,
+        }
+        r.setex(cart_key, CART_TTL, json.dumps(cart_data, ensure_ascii=False))
+
+        return success_response(
+            data={
+                "store_id":   store.store_id,
+                "store_name": store.store_name,
+                "items":      cart_items,
+                "item_count": len(cart_items),
+            },
+            message="장바구니에 이전 주문이 담겼습니다.",
+        )

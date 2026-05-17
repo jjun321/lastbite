@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
 from user.urls import users_urlpatterns
-from product.urls import categories_urlpatterns
+from product.urls import categories_urlpatterns, product_urlpatterns
 
 def home(request):
     return JsonResponse({"message": "backend test"})
@@ -20,6 +20,7 @@ urlpatterns = [
     path("notifications/", include("notification.urls")),
     path("anomaly/", include("product.anomaly_urls")),
     path("owner/stores/", include("store.owner_urls")),
+    path("products/", include((product_urlpatterns, "products"))),
     path("categories/", include((categories_urlpatterns, "categories"))),
 ]
 
