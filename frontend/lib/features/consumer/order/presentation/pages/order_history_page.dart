@@ -1,6 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/order/data/models/order_model.dart';
 import 'package:frontend/features/order/data/repositories/order_repository_impl.dart';
+import 'package:frontend/features/store/data/repositories/product_repository_impl.dart';
+import 'package:frontend/features/cart/data/models/cart_model.dart';
+import 'package:frontend/features/consumer/order/presentation/pages/cart_page.dart';
+import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 import 'order_detail_page.dart';
 
 class OrderHistoryPage extends StatefulWidget {
@@ -12,6 +17,7 @@ class OrderHistoryPage extends StatefulWidget {
 
 class _OrderHistoryPageState extends State<OrderHistoryPage> {
   final _repo = OrderRepositoryImpl();
+  final _productRepo = ProductRepositoryImpl(); // 최신 상품 정보 대조용 레포지토리
   bool isReservedSelected = true;
 
   late Future<List<OrderModel>> _ordersFuture;
@@ -33,6 +39,85 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
     );
+  }
+
+  // 재주문 검증 및 장바구니 화면 이동 로직
+  Future<void> _handleReorder(BuildContext context, OrderModel order) async {
+    // 1. 서버 연동 및 계산 처리 중 인디케이터 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // 2. 해당 매장의 최신 상품 리스트업
+      final currentProducts = await _productRepo.getStoreProducts(order.storeId);
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // 로딩 창 닫기
+
+      bool canReorder = true;
+      List<CartItemModel> tempCartItems = [];
+
+      // 3. 주문내역 내부 메뉴들이 판매중인지 대조 검증
+      for (var orderItem in order.items) {
+        final matchingItems = currentProducts.where((p) => p.productId == orderItem.productId).toList();
+        final dynamic matchingProduct = matchingItems.isNotEmpty ? matchingItems.first : null;
+
+        // 매장에 상품이 아예 없거나, 혹시 품절 관련 변수가 유추될 경우 차단
+        if (matchingProduct == null) {
+          canReorder = false;
+          break;
+        }
+
+        // CartItemModel 명세 대응
+        tempCartItems.add(
+          CartItemModel(
+            cartItemId: 'reorder_${orderItem.productId}_${Random().nextInt(100000)}',
+            productId: orderItem.productId,
+            productName: orderItem.productName,
+            productDisPrice: orderItem.productDisPrice,
+            productOriPrice: orderItem.productOriPrice,
+            quantity: orderItem.quantity,
+            productQty: orderItem.quantity,
+            subtotal: orderItem.subtotal,
+            imgUrl: orderItem.imgUrl,
+          ),
+        );
+      }
+
+      // 4. 상품 누락 또는 품절 시 에러 스낵바 활성화
+      if (!canReorder || tempCartItems.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('현재 재주문이 불가능합니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+
+      // 5. 예약 확인 화면이 아닌 장바구니 확인 화면(CartScreen) 페이지로 direct 라우팅 이동
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CartScreen(),
+        ),
+      );
+
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // 로딩 창 닫기
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('상품 정보를 확인하는 도중 오류가 발생했습니다.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -275,10 +360,22 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          order.storeName,
-                          style: const TextStyle(
-                            fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.bold,
+                        // 매장 이름 클릭 시 상점 상세조회(ShopPage) 화면으로 라우팅 처리
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ShopPage(storeId: order.storeId),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            order.storeName,
+                            style: const TextStyle(
+                              fontFamily: 'Sen', fontSize: 14, fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
                         ),
                         Text(
@@ -292,11 +389,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    // ✅ 왼쪽 정렬을 위해 Wrap 또는 Row 설정 변경
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.start, // 왼쪽 정렬 고정
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        Flexible( // Expanded 대신 Flexible 사용: 짧으면 콘텐츠만큼만 차지
+                        Flexible(
                           child: Text(
                             displayMenuName,
                             style: const TextStyle(
@@ -341,6 +437,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
             ],
           ),
           const SizedBox(height: 16),
+          // 주문 상세 버튼
           SizedBox(
             width: double.infinity,
             height: 38,
@@ -363,6 +460,27 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
               ),
               child: const Text(
                 '주문 상세',
+                style: TextStyle(
+                  fontFamily: 'Sen', fontSize: 12,
+                  fontWeight: FontWeight.w700, color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          // '재주문하기' 버튼
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: ElevatedButton(
+              onPressed: () => _handleReorder(context, order),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4FA55B),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text(
+                '재주문하기',
                 style: TextStyle(
                   fontFamily: 'Sen', fontSize: 12,
                   fontWeight: FontWeight.w700, color: Colors.white,
