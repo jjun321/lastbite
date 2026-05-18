@@ -26,30 +26,16 @@ class _MapViewState extends State<MapView> {
 
   static const NLatLng _defaultCenter = NLatLng(37.5827, 127.0088);
 
-  static const String _myLocationIcon = 'assets/images/icon_mylocation_pin.png';
   static const String _storeIcon = 'assets/images/icon_storelocation_pin.png';
   static const String _recommendIcon = 'assets/images/icon_recommend_pin.png';
 
   Future<Set<NMarker>> _buildMarkers() async {
     final markers = <NMarker>{};
 
-    final myLocationIconImage = await NOverlayImage.fromAssetImage(_myLocationIcon);
     final storeIconImage = await NOverlayImage.fromAssetImage(_storeIcon);
-    final recommendIconImage = await NOverlayImage.fromAssetImage(_recommendIcon);
-
-    // 현재 위치 마커
-    if (widget.currentPosition != null) {
-      final myLocationMarker = NMarker(
-        id: 'my_location',
-        position: NLatLng(
-          widget.currentPosition!.latitude,
-          widget.currentPosition!.longitude,
-        ),
-        icon: myLocationIconImage,
-      );
-      myLocationMarker.setCaption(NOverlayCaption(text: '내 위치'));
-      markers.add(myLocationMarker);
-    }
+    final recommendIconImage = await NOverlayImage.fromAssetImage(
+      _recommendIcon,
+    );
 
     for (int i = 0; i < widget.stores.length; i++) {
       final store = widget.stores[i];
@@ -132,9 +118,9 @@ class _MapViewState extends State<MapView> {
   Widget _buildNaverMap() {
     final initialTarget = widget.currentPosition != null
         ? NLatLng(
-      widget.currentPosition!.latitude,
-      widget.currentPosition!.longitude,
-    )
+            widget.currentPosition!.latitude,
+            widget.currentPosition!.longitude,
+          )
         : _defaultCenter;
 
     return NaverMap(
@@ -182,7 +168,10 @@ class _MapViewState extends State<MapView> {
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(8),
@@ -212,7 +201,10 @@ class _MapViewState extends State<MapView> {
       children: [
         Icon(Icons.location_on, color: color, size: 20),
         const SizedBox(width: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
+        ),
       ],
     );
   }
