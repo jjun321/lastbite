@@ -4,7 +4,7 @@ import 'package:frontend/features/order/data/models/order_model.dart';
 import 'package:frontend/features/order/data/repositories/order_repository_impl.dart';
 import 'package:frontend/features/store/data/repositories/product_repository_impl.dart';
 import 'package:frontend/features/cart/data/models/cart_model.dart';
-import 'package:frontend/features/consumer/order/presentation/pages/reservation_page.dart';
+import 'package:frontend/features/consumer/order/presentation/pages/cart_page.dart';
 import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 import 'order_detail_page.dart';
 
@@ -41,7 +41,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     );
   }
 
-  // 재주문 검증 및 예약확정 화면 이동 로직
+  // 재주문 검증 및 장바구니 화면 이동 로직
   Future<void> _handleReorder(BuildContext context, OrderModel order) async {
     // 1. 서버 연동 및 계산 처리 중 인디케이터 표시
     showDialog(
@@ -99,23 +99,12 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
         return;
       }
 
-      // 5. 총 수량 계산
-      final int totalQuantity = order.items.fold<int>(0, (sum, item) => sum + item.quantity);
 
-      // 6. ReservationScreen 사양에 가공된 CartModel 주입 데이터 빌드
-      final reorderCart = CartModel(
-        storeId: order.storeId,
-        storeName: order.storeName,
-        items: tempCartItems,
-        totalPrice: order.totalPrice,
-        totalQuantity: totalQuantity,
-      );
-
-      // 7. 예약 확인(ReservationScreen) 페이지로 direct 라우팅 이동
+      // 5. 예약 확인 화면이 아닌 장바구니 확인 화면(CartScreen) 페이지로 direct 라우팅 이동
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ReservationScreen(cart: reorderCart),
+          builder: (_) => const CartScreen(),
         ),
       );
 
