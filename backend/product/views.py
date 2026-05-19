@@ -39,6 +39,41 @@ def _call_ml_anomaly(store_id: int, discount_rate: int) -> dict | None:
     except Exception:
         return None
 
+def _call_ml_anomaly_batch(items: list[dict]) -> dict:
+    """
+    ML 서버 일괄 이상치 탐지 호출.
+    items = [{"store_id": int, "product_id": int, "discount_rate": int}, ...]
+
+    반환: {product_id: True/False} 형태의 anomaly_map
+    실패 시 빈 dict 반환 (이상치 없음으로 처리)
+    """
+    if not items:
+        return {}
+
+    url     = f"{settings.ML_SERVER_URL}/anomaly/detect-batch/"
+    payload = json.dumps({"items": items}).encode()
+    req     = urllib.request.Request(
+        url, data=payload,
+        headers={
+            "Content-Type":       "application/json",
+            "X-Internal-API-Key": settings.ML_INTERNAL_API_KEY,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body      = json.loads(resp.read())
+            anomalies = body.get("data", {}).get("anomalies", [])
+            # anomalies = [{"store_id": ..., "product_id": ..., "direction": "HIGH"|"LOW", ...}]
+            # direction == "HIGH"인 product_id만 True로 매핑
+            return {
+                a["product_id"]: (a.get("direction") == "HIGH")
+                for a in anomalies
+            }
+    except Exception:
+        return {}
+
+
 
 def _get_user_preferred_categories(user) -> set:
     """
@@ -208,7 +243,6 @@ class CategoryDetailView(APIView):
         except Category.DoesNotExist:
             return error_response("카테고리를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
 
-
 class ProductSearchView(APIView):
     """
     GET /products/search/
@@ -224,6 +258,7 @@ class ProductSearchView(APIView):
     def get(self, request):
         keyword     = request.query_params.get('keyword', '').strip()
         category_id = request.query_params.get('category_id')
+        use_anomaly = request.query_params.get('use_anomaly', 'false').lower() == 'true'
 
         try:
             lat    = float(request.query_params['lat']) if 'lat' in request.query_params else None
@@ -280,23 +315,32 @@ class ProductSearchView(APIView):
         preferred_categories = _get_user_preferred_categories(request.user)
         context['preferred_category_ids'] = preferred_categories
 
-        # ── 4. ML 이상치 탐지 (상품별 단건 호출) ─────────────────────────────
-        anomaly_map = {}
-        for p in products_list:
-            if p.product_ori_price and p.product_dis_price:
-                rate = int((1 - p.product_dis_price / p.product_ori_price) * 100)
-                ml   = _call_ml_anomaly(p.store_id_id, rate)
-                anomaly_map[p.pk] = (
-                    ml is not None and
-                    ml.get('data', {}).get('direction') == 'HIGH'
-                )
+        # ── 4. ML 이상치 탐지 (use_anomaly=true 일 때만 일괄 호출) ─────────────────────────────
+        if use_anomaly and products_list:
+            batch_items = [
+                {
+                    "store_id":      p.store_id_id,
+                    "product_id":    p.pk,
+                    "discount_rate": int(
+                        (1 - p.product_dis_price / p.product_ori_price) * 100
+                    ) if p.product_ori_price else 0,
+                }
+                for p in products_list
+                if p.product_ori_price and p.product_dis_price
+            ]
+            # HTTP 1회로 일괄 처리 (단건 N회 → 1회)
+            anomaly_map = _call_ml_anomaly_batch(batch_items)
+        else:
+            # use_anomaly=false 또는 상품 없음 → 이상치 탐지 생략
+            anomaly_map = {}
+
         context['anomaly_map'] = anomaly_map
 
         # ── 5. 정렬 ───────────────────────────────────────────────────────────
         # 우선순위: ① is_preferred(주문이력 카테고리) ② is_special(이상치 HIGH) ③ 할인율
         def _sort_key(p):
             cat_id      = p.category_id.category_id if p.category_id else None
-            is_preferred = cat_id in preferred_categories if cat_id else False
+            is_preferred = cat_id in preferred_categories if cat_id is not None else False
             is_special   = anomaly_map.get(p.pk, False)
             ori          = p.product_ori_price or 0
             dis          = p.product_dis_price or 0
@@ -325,10 +369,11 @@ class HotDealView(APIView):
     GET /products/hotdeal/
 
     동작:
-      1. 반경 내 매장별 할인율 최고 상품 수집
-      2. ML 이상치 탐지 → is_special 플래그
+      1. 반경 내 매장의 판매 중인 모든 상품 수집 (품절X, 삭제X)
+      2. ML 이상치 탐지 일괄 호출 → is_special 플래그
       3. 유저 주문 카테고리 → is_preferred 플래그
       4. 정렬: is_preferred 우선 → is_special 우선 → 할인율순
+      5. size 개수만큼 반환
     """
     permission_classes = [IsAuthenticated]
 
@@ -341,7 +386,7 @@ class HotDealView(APIView):
         except ValueError:
             return error_response("파라미터 값이 올바르지 않습니다.")
 
-        # ── 1. 반경 내 활성 매장 ─────────────────────────────────────────────
+        # ── 1. 반경 내 활성 매장 조회 ─────────────────────────────────────────
         store_qs = Store.objects.filter(is_deleted=False, is_closed=False)
 
         if lat is not None and lon is not None:
@@ -354,37 +399,48 @@ class HotDealView(APIView):
                 store_long__gte=lon - lon_delta,
                 store_long__lte=lon + lon_delta,
             )
-            stores = [
-                s for s in store_qs
+            store_ids = [
+                s.store_id for s in store_qs
                 if s.store_lat and s.store_long and
                    haversine_km(lat, lon, float(s.store_lat), float(s.store_long)) <= radius
             ]
         else:
-            stores = list(store_qs)
+            store_ids = list(store_qs.values_list('store_id', flat=True))
 
-        # ── 2. 매장별 할인율 최고 상품 수집 ─────────────────────────────────
-        candidates = []
-        for store in stores:
-            rep = (
-                Product.objects
-                .filter(
-                    store_id=store,
-                    is_deleted=False,
-                    product_count__gt=0,
-                    product_dis_price__isnull=False,
-                    product_ori_price__isnull=False,
-                )
-                .select_related('category_id')
-                .prefetch_related('productimg_set__img_id')
-                .first()
+        if not store_ids:
+            return success_response(data={'total': 0, 'products': []})
+
+        # ── 2. 해당 매장들의 판매 중인 모든 상품 수집 ─────────────────────────
+        # 매장별 .first() 제거 → 전체 상품 조회
+        all_products = (
+            Product.objects
+            .filter(
+                store_id__in=store_ids,
+                is_deleted=False,
+                product_count__gt=0,              # 품절 제외
+                product_dis_price__isnull=False,
+                product_ori_price__isnull=False,
             )
-            if not rep or not rep.product_ori_price:
-                continue
+            .select_related('store_id', 'category_id')
+            .prefetch_related('productimg_set__img_id')
+        )
 
-            ori  = rep.product_ori_price
-            dis  = rep.product_dis_price
+        if not all_products:
+            return success_response(data={'total': 0, 'products': []})
+
+        # store_id별 store 객체 캐싱 (중복 DB 쿼리 방지)
+        store_map = {s.store_id: s for s in store_qs}
+
+        candidates = []
+        for p in all_products:
+            ori  = p.product_ori_price
+            dis  = p.product_dis_price
             rate = int((1 - dis / ori) * 100) if ori else 0
-            candidates.append({'product': rep, 'store': store, 'discount_rate': rate})
+            candidates.append({
+                'product':       p,
+                'store':         store_map.get(p.store_id_id) or p.store_id,
+                'discount_rate': rate,
+            })
 
         if not candidates:
             return success_response(data={'total': 0, 'products': []})
@@ -392,21 +448,27 @@ class HotDealView(APIView):
         # ── 3. 유저 주문 카테고리 집합 ────────────────────────────────────────
         preferred_categories = _get_user_preferred_categories(request.user)
 
-        # ── 4. ML 이상치 탐지 ─────────────────────────────────────────────────
+        # ── 4. ML 이상치 탐지 — 일괄 호출 (HTTP 1회) ─────────────────────────
+        batch_items = [
+            {
+                "store_id":      c['store'].store_id,
+                "product_id":    c['product'].product_id,
+                "discount_rate": c['discount_rate'],
+            }
+            for c in candidates
+        ]
+        anomaly_map = _call_ml_anomaly_batch(batch_items)
+        # anomaly_map = {product_id: True/False}
+
+        # ── 5. 결과 조립 ──────────────────────────────────────────────────────
         results = []
         for c in candidates:
             product       = c['product']
             store         = c['store']
             discount_rate = c['discount_rate']
-
-            ml         = _call_ml_anomaly(store.store_id, discount_rate)
-            is_special = (
-                ml is not None and
-                ml.get('data', {}).get('direction') == 'HIGH'
-            )
-
-            cat_id       = product.category_id.category_id if product.category_id else None
-            is_preferred = cat_id in preferred_categories if cat_id else False
+            is_special    = anomaly_map.get(product.product_id, False)
+            cat_id        = product.category_id.category_id if product.category_id else None
+            is_preferred  = cat_id in preferred_categories if cat_id is not None else False
 
             img_url = None
             pi      = product.productimg_set.select_related('img_id').first()
@@ -420,8 +482,8 @@ class HotDealView(APIView):
                 'product_dis_price': product.product_dis_price,
                 'discount_rate':     discount_rate,
                 'img_url':           img_url,
-                'is_special':        is_special,    # 이상치 HIGH → 지도 빨간 마커
-                'is_preferred':      is_preferred,  # 주문이력 카테고리 → 상단 노출
+                'is_special':        is_special,
+                'is_preferred':      is_preferred,
                 'store_id':          store.store_id,
                 'store_name':        store.store_name,
                 'store_address':     store.store_address,
@@ -429,7 +491,7 @@ class HotDealView(APIView):
                 'store_lon':         float(store.store_long) if store.store_long else None,
             })
 
-        # ── 5. 정렬: is_preferred 우선 → is_special 우선 → 할인율순 ───────────
+        # ── 6. 정렬: is_preferred 우선 → is_special 우선 → 할인율순 ───────────
         results.sort(key=lambda r: (
             0 if r['is_preferred'] else 1,
             0 if r['is_special']   else 1,
