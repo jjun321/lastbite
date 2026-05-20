@@ -125,7 +125,7 @@ class PostListView(APIView):
                 post_long__lte=long + lon_delta,
             )
 
-            # 2차: Haversine 정밀 필터 + 거리순 정렬
+            # 2차: Haversine 정밀 필터 (반경 내 게시물만 통과)
             with_dist = []
             for post in qs:
                 if post.post_lat is None or post.post_long is None:
@@ -133,7 +133,10 @@ class PostListView(APIView):
                 dist = haversine_km(lat, long, float(post.post_lat), float(post.post_long))
                 if dist <= radius:
                     with_dist.append((dist, post))
-            with_dist.sort(key=lambda x: x[0])
+
+            # 정렬: sort 파라미터에 따라 최신순(등록일 desc).
+            # 'ordered'는 위에서 product_id 필터만 추가했고, 정렬 기준은 'latest'와 동일하게 최신순으로 통일.
+            with_dist.sort(key=lambda x: x[1].reg_dt, reverse=True)
 
             total = len(with_dist)
             paged = [s for _, s in with_dist[page * size:(page + 1) * size]]

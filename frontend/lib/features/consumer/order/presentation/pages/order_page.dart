@@ -7,7 +7,7 @@ import 'package:frontend/features/order/data/models/order_model.dart';
 import 'package:frontend/features/consumer/order/presentation/widgets/cart_reset_dialog.dart';
 import 'package:frontend/features/consumer/board/data/post_model.dart';
 import 'package:frontend/features/consumer/board/data/post_service.dart';
-import 'package:frontend/features/consumer/board/product_posts_page.dart';
+import 'package:frontend/features/consumer/board/board_navigation.dart';
 import 'cart_page.dart';
 
 class OrderScreen extends StatefulWidget {
@@ -37,13 +37,14 @@ class _OrderScreenState extends State<OrderScreen> {
   Map<int, int> _orderCountByProductId = {};
 
   // 정렬 상태
-  String _currentSort = 'default';
+  // - 핫딜순: 백엔드 sort='ordered' + 클라이언트에서 주문 횟수로 재정렬
+  // - 최저가순: 백엔드 sort='price_asc' (할인가 오름차순) — 핫딜 여부 무관
+  // - 최신순: 백엔드 sort='latest'
+  String _currentSort = 'ordered';
   static const _sortOptions = <String, String>{
-    'default': '등록순',
+    'ordered': '핫딜순',
     'price_asc': '최저가순',
-    'hotdeal': '핫딜순',
     'latest': '최신순',
-    'ordered': '주문이력순',
   };
 
   // 제보 카드 인라인 토글 상태
@@ -68,7 +69,7 @@ class _OrderScreenState extends State<OrderScreen> {
       // 주문 내역 조회는 비로그인/실패 시 빈 리스트로 대체해 상품 노출은 막지 않는다.
       final productsFuture = _productRepo.getStoreProducts(
         widget.storeId,
-        sort: _currentSort == 'default' ? null : _currentSort,
+        sort: _currentSort,
       );
       final ordersFuture = _orderRepo.getOrders().catchError(
         (_) => <OrderModel>[],
@@ -87,13 +88,19 @@ class _OrderScreenState extends State<OrderScreen> {
         }
       }
 
-      // 주문 횟수 desc 로 안정 정렬 — 같은 카운트면 백엔드 정렬 순서 유지
-      final sorted = List<ProductModel>.from(products);
-      sorted.sort((a, b) {
-        final ca = countMap[a.productId] ?? 0;
-        final cb = countMap[b.productId] ?? 0;
-        return cb.compareTo(ca);
-      });
+      // 핫딜순(ordered)일 때만 주문 횟수 기준으로 재정렬한다.
+      // 최저가순/최신순은 백엔드 정렬 결과(할인가 오름차순 등)를 그대로 유지해야 한다.
+      final List<ProductModel> sorted;
+      if (_currentSort == 'ordered') {
+        sorted = List<ProductModel>.from(products)
+          ..sort((a, b) {
+            final ca = countMap[a.productId] ?? 0;
+            final cb = countMap[b.productId] ?? 0;
+            return cb.compareTo(ca);
+          });
+      } else {
+        sorted = products;
+      }
 
       if (mounted) {
         setState(() {
@@ -113,6 +120,7 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   // 특정 상품의 최신 제보 1건 로드
+  // (매장과 상품이 모두 지정된 제보만 대상)
   Future<void> _loadLatestPost(int productId) async {
     if (_latestPostCache.containsKey(productId)) return; // 이미 로드됨
 
@@ -120,6 +128,7 @@ class _OrderScreenState extends State<OrderScreen> {
 
     try {
       final posts = await PostService.fetchPosts(
+        storeId: widget.storeId,
         productId: productId,
         sort: 'latest',
         size: 1,
@@ -415,16 +424,18 @@ class _OrderScreenState extends State<OrderScreen> {
                 )
               : GestureDetector(
                   onTap: () {
-                    // 제보 카드 탭 → 해당 상품 전체 제보 페이지로 이동
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProductPostsPage(
-                          productId: product.productId,
-                          productName: product.productName,
-                        ),
+                    // 제보 카드 탭 → 제보게시판 탭으로 이동하면서
+                    // 해당 매장 + 해당 상품 필터를 같이 적용한다.
+                    BoardNavigation.openReportBoard(
+                      filter: ReportBoardFilter(
+                        storeId: widget.storeId,
+                        storeName: widget.storeName,
+                        productId: product.productId,
+                        productName: product.productName,
                       ),
                     );
+                    // 홈 셸까지 모든 라우트를 정리해 사용자가 바로 탭 화면을 본다.
+                    Navigator.of(context).popUntil((r) => r.isFirst);
                   },
                   child: _buildPostCard(post),
                 ),
@@ -549,7 +560,8 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   Widget _buildMenuItem(ProductModel item) {
-    // HOT DEAL 기준: 이 매장에서 소비자가 이전에 주문한 적이 있는 상품
+    // HOT DEAL 기준: 이 매장에서 소비자가 이전에 주문한 적이 있는 상품만.
+    // 할인율(discountRate)/이상치(isSpecial) 등 다른 신호는 절대 고려하지 않는다.
     // (주문이 많을수록 _loadProducts 에서 상단으로 정렬됨)
     final bool isHotDeal = (_orderCountByProductId[item.productId] ?? 0) > 0;
     final bool isExpanded = _expandedProductIds.contains(item.productId);

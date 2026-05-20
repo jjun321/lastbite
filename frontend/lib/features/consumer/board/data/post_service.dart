@@ -57,6 +57,7 @@ class PostService {
     double? postLat,
     double? postLong,
     File? imageFile,
+    int? productId,
   }) async {
     try {
       final token = await AuthService.getAccessToken();
@@ -79,6 +80,9 @@ class PostService {
       }
       if (postLong != null) {
         request.fields['post_long'] = '$postLong';
+      }
+      if (productId != null) {
+        request.fields['product_id'] = '$productId';
       }
 
       if (imageFile != null) {

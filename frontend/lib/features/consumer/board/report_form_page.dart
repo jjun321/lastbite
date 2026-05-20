@@ -188,6 +188,7 @@ class _ReportFormPageState extends State<ReportFormPage> {
       postName: _postNameCtrl.text.trim(),
       content: _contentCtrl.text.trim(),
       storeId: _selectedStoreId,
+      productId: _selectedProductId,
       postLat: postLat,
       postLong: postLong,
       imageFile: _imageFile,

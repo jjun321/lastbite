@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'board_navigation.dart';
 import 'data/post_model.dart';
 import 'data/post_service.dart';
 import 'report_form_page.dart';
@@ -17,11 +18,48 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
   bool _loading = false;
   double? _lat;
   double? _long;
-  String _sort = 'latest'; // 'latest' | 'ordered'
+  // null 이면 정렬 칩이 모두 미선택 상태 (외부 필터로 진입한 경우).
+  String? _sort = 'latest'; // 'latest' | 'ordered' | null
+  // 매장정보 → 제보 카드에서 넘어온 매장+상품 필터.
+  ReportBoardFilter? _filter;
 
   @override
   void initState() {
     super.initState();
+    // 외부에서 필터가 미리 세팅됐다면 즉시 반영하고 큐를 비운다.
+    final pending = BoardNavigation.pendingFilter.value;
+    if (pending != null) {
+      _filter = pending;
+      _sort = null;
+      BoardNavigation.pendingFilter.value = null;
+    }
+    BoardNavigation.pendingFilter.addListener(_onPendingFilterChanged);
+    _loadPosts();
+  }
+
+  @override
+  void dispose() {
+    BoardNavigation.pendingFilter.removeListener(_onPendingFilterChanged);
+    super.dispose();
+  }
+
+  void _onPendingFilterChanged() {
+    final pending = BoardNavigation.pendingFilter.value;
+    if (pending == null) return;
+    setState(() {
+      _filter = pending;
+      _sort = null; // 칩 미선택 상태
+    });
+    // 같은 필터로 재진입할 수 있도록 큐를 비운다.
+    BoardNavigation.pendingFilter.value = null;
+    _loadPosts();
+  }
+
+  void _clearFilter() {
+    setState(() {
+      _filter = null;
+      _sort = 'latest';
+    });
     _loadPosts();
   }
 
@@ -47,11 +85,17 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
       debugPrint('위치 오류: $e');
     }
 
+    // 매장/상품 필터가 걸려 있으면 반경/위치 무관하게 전체 결과를 본다.
+    final hasFilter = _filter != null &&
+        (_filter!.storeId != null || _filter!.productId != null);
+
     final posts = await PostService.fetchPosts(
-      lat: _lat,
-      long: _long,
+      lat: hasFilter ? null : _lat,
+      long: hasFilter ? null : _long,
       radiusKm: 3,
       sort: _sort,
+      storeId: _filter?.storeId,
+      productId: _filter?.productId,
     );
 
     if (mounted) {
@@ -163,6 +207,16 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
                 ],
               ),
             ),
+            // 외부에서 넘어온 매장/상품 필터 표시 + 해제 버튼
+            if (_filter != null &&
+                (_filter!.storeId != null || _filter!.productId != null))
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 29.0,
+                  vertical: 10.0,
+                ),
+                child: _buildFilterBanner(),
+              ),
             const SizedBox(height: 12),
             Expanded(
               child: _loading
@@ -194,12 +248,67 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
     );
   }
 
+  Widget _buildFilterBanner() {
+    final f = _filter!;
+    final parts = <String>[
+      if (f.storeName != null && f.storeName!.isNotEmpty) f.storeName!,
+      if (f.productName != null && f.productName!.isNotEmpty) f.productName!,
+    ];
+    final label = parts.isEmpty ? '필터 적용 중' : parts.join(' · ');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAFBF0),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF4FA55B)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.filter_alt,
+            size: 16,
+            color: Color(0xFF4FA55B),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'Sen',
+                fontSize: 13,
+                color: Color(0xFF4FA55B),
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          GestureDetector(
+            onTap: _clearFilter,
+            child: const Padding(
+              padding: EdgeInsets.all(2.0),
+              child: Icon(
+                Icons.close,
+                size: 16,
+                color: Color(0xFF4FA55B),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSortChip(String label, String value) {
     final isSelected = _sort == value;
     return GestureDetector(
       onTap: () {
-        if (_sort != value) {
-          setState(() => _sort = value);
+        // 칩을 다시 누르면 매장/상품 필터도 같이 해제하고 정렬을 적용한다.
+        if (_sort != value || _filter != null) {
+          setState(() {
+            _sort = value;
+            _filter = null;
+          });
           _loadPosts();
         }
       },
