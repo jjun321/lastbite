@@ -7,6 +7,27 @@ from product.models.product import Product
 from store.models.off_date import OffDate
 from store.models.store import Store
 from store.models.store_working_time import StoreWorkingTime
+from datetime import datetime, timedelta, date
+
+def _is_pickup_valid(working_time, pickup_dt) -> bool:
+    """
+    픽업 시간이 운영시간 내에 있는지 판단.
+    end_day_offset=1 (자정 넘기는 영업) 처리 포함.
+    """
+    offset = getattr(working_time, 'end_day_offset', 0)
+
+    # KST 기준 datetime으로 변환하여 비교
+    pickup_date = pickup_dt.date()
+    open_dt  = datetime.combine(pickup_date, working_time.start_time)
+    close_dt = datetime.combine(pickup_date + timedelta(days=offset), working_time.end_time)
+
+    # offset=1이고 end_time=00:00이면 close_dt = 내일 00:00 (자정 정각 마감)
+    # offset=0이고 end_time=00:00이면 close_dt = 오늘 00:00 → 영업시간 0분으로 비정상
+    # → 이 경우는 validate_working_times에서 사전 차단
+
+    pickup_naive = pickup_dt.replace(tzinfo=None)
+    return open_dt <= pickup_naive <= close_dt
+
 
 
 # 요일 코드 매핑 (Python weekday() 기준)
@@ -20,6 +41,7 @@ WEEKDAY_CODE_MAP = {
     5: 'D07',  # 토
     6: 'D01',  # 일
 }
+
 
 
 # ─── Mixin: total_price 계산 공통화 ──────────────────────
@@ -80,8 +102,7 @@ class OrderCreateSerializer(serializers.Serializer):
         if not working_time:
             raise serializers.ValidationError({"pickup_dt": "해당 요일은 매장 운영일이 아닙니다."})
 
-        pickup_time = pickup_dt.time()
-        if not (working_time.start_time <= pickup_time <= working_time.end_time):
+        if not _is_pickup_valid(working_time, pickup_dt):
             raise serializers.ValidationError({"pickup_dt": "픽업 시간이 매장 운영시간을 벗어납니다."})
 
         # 3. 재고 체크

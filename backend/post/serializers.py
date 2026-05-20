@@ -12,6 +12,8 @@ class PostResponseSerializer(serializers.ModelSerializer):
     post_long = serializers.FloatField()
     store_id   = serializers.SerializerMethodField()
     store_name = serializers.SerializerMethodField()
+    product_id  = serializers.SerializerMethodField()
+    product_name = serializers.SerializerMethodField()
     img_url    = serializers.SerializerMethodField()
     distance_km = serializers.SerializerMethodField()
     reg_dt     = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
@@ -22,6 +24,7 @@ class PostResponseSerializer(serializers.ModelSerializer):
             'post_id', 'user_id', 'user_name', 'post_name',
             'content', 'post_lat', 'post_long',
             'store_id', 'store_name',
+            'product_id', 'product_name',
             'img_url', 'distance_km', 'reg_dt',
         ]
     def get_distance_km(self, obj):
@@ -38,6 +41,10 @@ class PostResponseSerializer(serializers.ModelSerializer):
 
     def get_store_name(self, obj):
         return obj.store_id.store_name if obj.store_id else None
+    def get_product_id(self, obj):
+        return obj.product_id_id if obj.product_id_id else None
 
+    def get_product_name(self, obj):
+        return obj.product_id.product_name if obj.product_id else None
     def get_img_url(self, obj):
         return obj.img_id.img_url if obj.img_id else None

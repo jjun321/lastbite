@@ -294,6 +294,13 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
     def validate_working_times(self, value):
         start_time = value.get('start_time')
         end_time = value.get('end_time')
+        end_day_offset = value.get('end_day_offset', 0)  # ← 추가
+
+        # end_day_offset 범위 체크
+        if end_day_offset not in (0, 1):
+            raise serializers.ValidationError(
+                "end_day_offset은 0(당일) 또는 1(익일)만 허용됩니다."
+            )
 
         if start_time is not None:
             try:
@@ -312,6 +319,12 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"end_time '{end_time}'의 형식이 올바르지 않습니다. (HH:MM)"
                 )
+
+        if end_time == '00:00' and end_day_offset == 0:
+            raise serializers.ValidationError(
+                "자정(00:00) 마감은 익일 마감이므로 end_day_offset을 1로 설정해야 합니다."
+            )
+
         return value
 
     def validate_off_dates(self, value):
@@ -349,16 +362,24 @@ class OwnerStoreUpdateSerializer(serializers.ModelSerializer):
 
         # 운영시간 전달 시 전체 교체(upsert)
         if working_times is not None:
-            instance.storeworkingtime_set.all().delete()
-            working_times = [
-                StoreWorkingTime(
-                    store_id=instance,
-                    working_day=f'D{i:02d}',
-                    start_time=working_times.get('start_time'),
-                    end_time=working_times.get('end_time')
-                ) for i in range(1, 8)  # 월(D01) ~ 일(D07)
-            ]
-            StoreWorkingTime.objects.bulk_create(working_times)
+            start_time = working_times.get('start_time')
+            end_time = working_times.get('end_time')
+            end_day_offset = working_times.get('end_day_offset', 0)  # ← 추가
+
+            if start_time is None or end_time is None:
+                pass
+            else:
+                instance.storeworkingtime_set.all().delete()
+                new_working_times = [
+                    StoreWorkingTime(
+                        store_id=instance,
+                        working_day=f'D{i:02d}',
+                        start_time=start_time,
+                        end_time=end_time,
+                        end_day_offset=end_day_offset,  # ← 추가
+                    ) for i in range(1, 8)
+                ]
+                StoreWorkingTime.objects.bulk_create(new_working_times)
 
         if off_dates is not None :
             for od in off_dates:
@@ -404,6 +425,7 @@ class OwnerStoreDetailSerializer(serializers.ModelSerializer):
                 'working_day': wt.working_day,
                 'start_time': wt.start_time.strftime('%H:%M'),
                 'end_time': wt.end_time.strftime('%H:%M'),
+                'end_day_offset': getattr(wt, 'end_day_offset', 0),
             }
             for wt in wts
         ]
