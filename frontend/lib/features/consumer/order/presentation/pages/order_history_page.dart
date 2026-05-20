@@ -1,9 +1,6 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:frontend/features/order/data/models/order_model.dart';
 import 'package:frontend/features/order/data/repositories/order_repository_impl.dart';
-import 'package:frontend/features/store/data/repositories/product_repository_impl.dart';
-import 'package:frontend/features/cart/data/models/cart_model.dart';
 import 'package:frontend/features/consumer/order/presentation/pages/cart_page.dart';
 import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_page.dart';
 import 'order_detail_page.dart';
@@ -17,7 +14,6 @@ class OrderHistoryPage extends StatefulWidget {
 
 class _OrderHistoryPageState extends State<OrderHistoryPage> {
   final _repo = OrderRepositoryImpl();
-  final _productRepo = ProductRepositoryImpl(); // 최신 상품 정보 대조용 레포지토리
   bool isReservedSelected = true;
 
   late Future<List<OrderModel>> _ordersFuture;
@@ -41,9 +37,9 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     );
   }
 
-  // 재주문 검증 및 장바구니 화면 이동 로직
+  // 재주문 — 백엔드 API 연동
   Future<void> _handleReorder(BuildContext context, OrderModel order) async {
-    // 1. 서버 연동 및 계산 처리 중 인디케이터 표시
+    // 로딩 인디케이터 표시
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -51,69 +47,53 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     );
 
     try {
-      // 2. 해당 매장의 최신 상품 리스트업
-      final currentProducts = await _productRepo.getStoreProducts(order.storeId);
+      final response = await _repo.reorder(order.orderId);
 
       if (!context.mounted) return;
       Navigator.pop(context); // 로딩 창 닫기
 
-      bool canReorder = true;
-      List<CartItemModel> tempCartItems = [];
+      final bool success = response['success'] ?? false;
+      final String message = response['message'] ?? '';
 
-      // 3. 주문내역 내부 메뉴들이 판매중인지 대조 검증
-      for (var orderItem in order.items) {
-        final matchingItems = currentProducts.where((p) => p.productId == orderItem.productId).toList();
-        final dynamic matchingProduct = matchingItems.isNotEmpty ? matchingItems.first : null;
-
-        // 매장에 상품이 아예 없거나, 혹시 품절 관련 변수가 유추될 경우 차단
-        if (matchingProduct == null) {
-          canReorder = false;
-          break;
-        }
-
-        // CartItemModel 명세 대응
-        tempCartItems.add(
-          CartItemModel(
-            cartItemId: 'reorder_${orderItem.productId}_${Random().nextInt(100000)}',
-            productId: orderItem.productId,
-            productName: orderItem.productName,
-            productDisPrice: orderItem.productDisPrice,
-            productOriPrice: orderItem.productOriPrice,
-            quantity: orderItem.quantity,
-            productQty: orderItem.quantity,
-            subtotal: orderItem.subtotal,
-            imgUrl: orderItem.imgUrl,
-          ),
-        );
-      }
-
-      // 4. 상품 누락 또는 품절 시 에러 스낵바 활성화
-      if (!canReorder || tempCartItems.isEmpty) {
+      if (success) {
+        // 성공 — 스낵바 후 장바구니로 이동
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('현재 재주문이 불가능합니다.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: const Color(0xFF4FA55B),
+            duration: const Duration(seconds: 2),
           ),
         );
-        return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CartScreen()),
+        );
+      } else {
+        // 실패 — 토스트 메시지
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
-
-
-      // 5. 예약 확인 화면이 아닌 장바구니 확인 화면(CartScreen) 페이지로 direct 라우팅 이동
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const CartScreen(),
-        ),
-      );
-
     } catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context); // 로딩 창 닫기
+
+      // DioException에서 서버 메시지 추출
+      String errorMsg = '상품 정보를 확인하는 도중 오류가 발생했습니다.';
+      try {
+        final dioError = e as dynamic;
+        if (dioError.response?.data != null) {
+          errorMsg = dioError.response.data['message'] ?? errorMsg;
+        }
+      } catch (_) {}
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('상품 정보를 확인하는 도중 오류가 발생했습니다.'),
+        SnackBar(
+          content: Text(errorMsg),
           backgroundColor: Colors.red,
         ),
       );

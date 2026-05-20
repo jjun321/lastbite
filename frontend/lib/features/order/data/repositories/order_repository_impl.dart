@@ -32,6 +32,11 @@ class OrderRepositoryImpl {
     );
   }
 
+  // 재주문 — POST /orders/{order_id}/reorder/
+  Future<Map<String, dynamic>> reorder(int orderId) async {
+    return await _api.reorder(orderId);
+  }
+
   Future<void> cancelOrder(int orderId) async {
     await _api.cancelOrder(orderId);
   }

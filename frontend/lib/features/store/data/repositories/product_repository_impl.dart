@@ -7,9 +7,35 @@ class ProductRepositoryImpl {
 
   ProductRepositoryImpl() : _api = ProductApi(ApiClient().dio);
 
-  Future<List<ProductModel>> getStoreProducts(int storeId) async {
+  Future<List<ProductModel>> getStoreProducts(
+    int storeId, {
+    String? sort,
+    int? categoryId,
+  }) async {
     try {
-      return await _api.getStoreProducts(storeId);
+      return await _api.getStoreProducts(
+        storeId,
+        sort: sort,
+        categoryId: categoryId,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<ProductModel>> getHotDealProducts({
+    double? lat,
+    double? lon,
+    int? radius,
+    int? size,
+  }) async {
+    try {
+      return await _api.getHotDealProducts(
+        lat: lat,
+        lon: lon,
+        radius: radius,
+        size: size,
+      );
     } catch (e) {
       rethrow;
     }

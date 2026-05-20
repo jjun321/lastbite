@@ -18,6 +18,9 @@ class PostService {
     int radiusKm = 3,
     int page = 0,
     int size = 20,
+    String? sort,       // 'latest' (기본) / 'ordered' (주문한 상품 관련)
+    int? productId,     // 특정 상품 관련 포스트만
+    int? storeId,       // 특정 매장 포스트만
   }) async {
     final params = <String, String>{
       'page': '$page',
@@ -25,6 +28,9 @@ class PostService {
       'radius': '$radiusKm',
       if (lat != null) 'lat': '$lat',
       if (long != null) 'long': '$long',
+      if (sort != null) 'sort': sort,
+      if (productId != null) 'product_id': '$productId',
+      if (storeId != null) 'store_id': '$storeId',
     };
 
     final uri = Uri.parse('$_base/posts/').replace(queryParameters: params);

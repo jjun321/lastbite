@@ -80,4 +80,14 @@ class ApiConfig {
   // 추천 엔드포인트
   static const String recommendations =
       '/users/me/recommendations'; // GET (ML 서버 기반 매장 추천)
+
+  // 핫딜 엔드포인트
+  static const String hotdeal = '/products/hotdeal/'; // GET (핫딜 상품 목록)
+
+  // 재주문 엔드포인트
+  static String reorder(int orderId) =>
+      '/orders/$orderId/reorder/'; // POST (이전 주문 재주문)
+
+  // 카테고리 엔드포인트
+  static const String categories = '/categories/'; // GET (카테고리 목록)
 }

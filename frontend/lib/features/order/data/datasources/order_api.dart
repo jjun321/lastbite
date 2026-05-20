@@ -64,6 +64,17 @@ class OrderApi {
     }
   }
 
+  // 재주문 — POST /orders/{order_id}/reorder/
+  Future<Map<String, dynamic>> reorder(int orderId) async {
+    try {
+      final response = await _dio.post(ApiConfig.reorder(orderId));
+      return response.data;
+    } catch (e) {
+      print('❌ OrderApi reorder Error: $e');
+      rethrow;
+    }
+  }
+
   // 주문 취소
   Future<void> cancelOrder(int orderId) async {
     try {

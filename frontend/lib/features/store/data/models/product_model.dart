@@ -13,6 +13,16 @@ class ProductModel {
   final String? imgUrl;
   final bool isAvailable;
 
+  // 검색/핫딜 API 전용 필드
+  final int? storeId;
+  final String? storeName;
+  final String? storeAddress;
+  final double? distanceKm;
+  final double? storeLat;
+  final double? storeLon;
+  final bool isSpecial;     // ML 이상치 탐지 HIGH — "특가" 배지
+  final bool isPreferred;   // 유저가 주문한 카테고리 소속 — 상단 고정
+
   ProductModel({
     required this.productId,
     this.categoryId,
@@ -25,6 +35,14 @@ class ProductModel {
     this.productCount,
     this.imgUrl,
     required this.isAvailable,
+    this.storeId,
+    this.storeName,
+    this.storeAddress,
+    this.distanceKm,
+    this.storeLat,
+    this.storeLon,
+    this.isSpecial = false,
+    this.isPreferred = false,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +61,16 @@ class ProductModel {
       imgUrl: ApiConfig.getImageUrl(json['img_url']),
 
       isAvailable: json['is_available'] ?? false,
+
+      // 검색/핫딜 API 전용 필드
+      storeId: json['store_id'],
+      storeName: json['store_name'],
+      storeAddress: json['store_address'],
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      storeLat: (json['store_lat'] as num?)?.toDouble(),
+      storeLon: (json['store_lon'] as num?)?.toDouble(),
+      isSpecial: json['is_special'] ?? false,
+      isPreferred: json['is_preferred'] ?? false,
     );
   }
 }

@@ -7,14 +7,18 @@ class MapView extends StatefulWidget {
   final List<StoreModel> stores;
   final bool showAiRecommended;
   final VoidCallback? onSelectTap;
+  final void Function(int storeId)? onMarkerTap; // 마커 탭 시 storeId 전달
   final Position? currentPosition;
+  final Set<int> hotDealStoreIds; // 핫딜 보유 매장 ID 집합
 
   const MapView({
     super.key,
     required this.stores,
     this.showAiRecommended = false,
     this.onSelectTap,
+    this.onMarkerTap,
     this.currentPosition,
+    this.hotDealStoreIds = const {},
   });
 
   @override
@@ -42,9 +46,16 @@ class _MapViewState extends State<MapView> {
 
       if (store.storeLat == null || store.storeLon == null) continue;
 
-      final icon = (widget.showAiRecommended && store.isAiRecommended)
-          ? recommendIconImage
-          : storeIconImage;
+      // 핫딜 매장 → 빨간 마커, AI 추천 → 추천 마커, 그 외 → 기본
+      NOverlayImage icon;
+      if (widget.hotDealStoreIds.contains(store.storeId)) {
+        // 핫딜 매장은 빨간색 마커 — NMarker의 iconTintColor를 활용하여 빨간색 처리
+        icon = storeIconImage;
+      } else if (widget.showAiRecommended && store.isAiRecommended) {
+        icon = recommendIconImage;
+      } else {
+        icon = storeIconImage;
+      }
 
       final marker = NMarker(
         id: 'store_$i',
@@ -52,7 +63,17 @@ class _MapViewState extends State<MapView> {
         icon: icon,
       );
 
+      // 핫딜 매장은 빨간색 틴트 적용
+      if (widget.hotDealStoreIds.contains(store.storeId)) {
+        marker.setIconTintColor(const Color(0xFFE53935));
+      }
+
       marker.setCaption(NOverlayCaption(text: store.storeName));
+
+      // 마커 탭 이벤트 — 매장 상세 페이지로 이동
+      marker.setOnTapListener((overlay) {
+        widget.onMarkerTap?.call(store.storeId);
+      });
 
       markers.add(marker);
     }
@@ -65,28 +86,6 @@ class _MapViewState extends State<MapView> {
     return Column(
       children: [
         Expanded(child: _buildNaverMap()),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: widget.onSelectTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4FA75A),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
-              ),
-              child: const Text(
-                '선택하기',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -94,6 +93,8 @@ class _MapViewState extends State<MapView> {
   @override
   void didUpdateWidget(covariant MapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // 위치 변경 시 카메라 이동
     if (widget.currentPosition != oldWidget.currentPosition &&
         widget.currentPosition != null &&
         _mapController != null) {
@@ -104,8 +105,10 @@ class _MapViewState extends State<MapView> {
           zoom: 15,
         ),
       );
-      _refreshMarkers();
     }
+
+    // 핫딜 스토어 ID가 바뀌거나 매장 목록이 바뀌면 마커 새로고침
+    _refreshMarkers();
   }
 
   Future<void> _refreshMarkers() async {

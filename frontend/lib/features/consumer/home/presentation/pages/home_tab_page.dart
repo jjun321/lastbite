@@ -3,6 +3,7 @@ import 'package:frontend/features/consumer/store_detail/presentation/pages/shop_
 import 'package:geolocator/geolocator.dart';
 import 'package:frontend/features/store/data/models/store_model.dart';
 import 'package:frontend/features/store/data/repositories/store_repository_impl.dart';
+import 'package:frontend/features/store/data/repositories/product_repository_impl.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/view_toggle.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/location_preset_bar.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
@@ -18,6 +19,7 @@ class HomeTabPage extends StatefulWidget {
 
 class _HomeTabPageState extends State<HomeTabPage> {
   final _repo = StoreRepositoryImpl();
+  final _productRepo = ProductRepositoryImpl();
 
   bool _isListView = true;
   bool _showAiRecommended = false;
@@ -31,6 +33,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
   /// 현재 선택된 거리 필터 (km 단위, 0 = 필터 없음)
   int _filterDistance = 300; // 기본 반경 3km
+
+  /// 핫딜 매장 ID 집합 (지도 빨간 마커용)
+  Set<int> _hotDealStoreIds = {};
 
   @override
   void initState() {
@@ -57,12 +62,36 @@ class _HomeTabPageState extends State<HomeTabPage> {
         _stores = stores;
         _isLoadingStores = false;
       });
+
+      // 핫딜 데이터 로드
+      _fetchHotDeals(lat: lat, lon: lon);
     } catch (e, stacktrace) {
       print('❌ 매장 불러오기 실패 에러: $e');
       print('❌ 스택트레이스: $stacktrace');
       setState(() {
         _isLoadingStores = false;
       });
+    }
+  }
+
+  // ── 핫딜 로드 ─────────────────────────────────────────
+
+  Future<void> _fetchHotDeals({double? lat, double? lon}) async {
+    try {
+      final hotDeals = await _productRepo.getHotDealProducts(
+        lat: lat,
+        lon: lon,
+        radius: _filterDistance >= 1000 ? _filterDistance ~/ 1000 : 3,
+      );
+      final storeIds = hotDeals
+          .where((p) => p.storeId != null)
+          .map((p) => p.storeId!)
+          .toSet();
+      if (mounted) {
+        setState(() => _hotDealStoreIds = storeIds);
+      }
+    } catch (e) {
+      print('❌ 핫딜 로드 실패: $e');
     }
   }
 
@@ -286,16 +315,14 @@ class _HomeTabPageState extends State<HomeTabPage> {
       stores: _stores,
       showAiRecommended: _showAiRecommended,
       currentPosition: _currentPosition,
-      onSelectTap: () {
-        // TODO: 선택된 마커의 storeId로 교체
-        if (_stores.isNotEmpty) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ShopPage(storeId: _stores[0].storeId),
-            ),
-          );
-        }
+      hotDealStoreIds: _hotDealStoreIds,
+      onMarkerTap: (storeId) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ShopPage(storeId: storeId),
+          ),
+        );
       },
     );
   }

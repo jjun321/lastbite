@@ -17,6 +17,7 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
   bool _loading = false;
   double? _lat;
   double? _long;
+  String _sort = 'latest'; // 'latest' | 'ordered'
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
       lat: _lat,
       long: _long,
       radiusKm: 3,
+      sort: _sort,
     );
 
     if (mounted) {
@@ -150,6 +152,18 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
                 ],
               ),
             ),
+            // 정렬 필터 토글
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 29.0),
+              child: Row(
+                children: [
+                  _buildSortChip('최신순', 'latest'),
+                  const SizedBox(width: 8),
+                  _buildSortChip('내 주문 관련', 'ordered'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -175,6 +189,37 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
                     ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortChip(String label, String value) {
+    final isSelected = _sort == value;
+    return GestureDetector(
+      onTap: () {
+        if (_sort != value) {
+          setState(() => _sort = value);
+          _loadPosts();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEAFBF0) : Colors.white,
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4FA55B) : const Color(0xFFE4E4E4),
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Sen',
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? const Color(0xFF4FA55B) : const Color(0xFF6B6E82),
+          ),
         ),
       ),
     );
