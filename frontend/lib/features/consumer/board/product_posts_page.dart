@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'data/post_model.dart';
 import 'data/post_service.dart';
 
-/// 특정 상품에 대한 모든 제보 목록을 보여주는 전체 화면 페이지
+/// 특정 매장의 특정 상품에 대한 제보 목록을 보여주는 전체 화면 페이지
 class ProductPostsPage extends StatefulWidget {
   final int productId;
   final String productName;
+  final int? storeId;
+  final String? storeName;
 
   const ProductPostsPage({
     super.key,
     required this.productId,
     required this.productName,
+    this.storeId,
+    this.storeName,
   });
 
   @override
@@ -27,15 +31,34 @@ class _ProductPostsPageState extends State<ProductPostsPage> {
     _loadPosts();
   }
 
+  // 공백/대소문자 차이를 흡수해 post_name 과 product_name 을 비교한다.
+  String _normalize(String s) =>
+      s.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+
+  bool _matchesProduct(PostModel p) {
+    // 신규 제보: product_id 가 채워져 있으면 그걸로 정확히 매칭
+    if (p.productId != null) return p.productId == widget.productId;
+    // 옛 제보: product_id 가 NULL 이라 post_name 이 상품명과 일치하면 같은 상품으로 본다
+    return _normalize(p.postName) == _normalize(widget.productName);
+  }
+
   Future<void> _loadPosts() async {
     setState(() => _loading = true);
-    final posts = await PostService.fetchPosts(
-      productId: widget.productId,
+    // 백엔드에는 매장 필터만 적용해서 충분한 양을 받고, 상품 매칭은 클라이언트에서 한다.
+    // (옛 데이터의 product_id NULL 문제를 회피)
+    final fetched = await PostService.fetchPosts(
+      storeId: widget.storeId,
       sort: 'latest',
+      size: 50,
     );
+    final matched = fetched.where((p) {
+      if (widget.storeId != null && p.storeId != widget.storeId) return false;
+      return _matchesProduct(p);
+    }).toList();
+
     if (mounted) {
       setState(() {
-        _posts = posts;
+        _posts = matched;
         _loading = false;
       });
     }
@@ -69,14 +92,31 @@ class _ProductPostsPageState extends State<ProductPostsPage> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      widget.productName,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF181C2E),
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.productName,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF181C2E),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.storeName != null &&
+                            widget.storeName!.isNotEmpty)
+                          Text(
+                            widget.storeName!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF747783),
+                              fontFamily: 'Sen',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
                 ],

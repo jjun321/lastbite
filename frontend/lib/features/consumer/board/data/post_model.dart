@@ -9,6 +9,8 @@ class PostModel {
   final double? postLong;
   final int? storeId;
   final String? storeName;
+  final int? productId;
+  final String? productName;
   final String? imgUrl;
   final double? distanceKm;
   final String regDt;
@@ -23,6 +25,8 @@ class PostModel {
     this.postLong,
     this.storeId,
     this.storeName,
+    this.productId,
+    this.productName,
     this.imgUrl,
     this.distanceKm,
     required this.regDt,
@@ -39,6 +43,8 @@ class PostModel {
       postLong: (json['post_long'] as num?)?.toDouble(),
       storeId: json['store_id'] as int?,
       storeName: json['store_name'] as String?,
+      productId: json['product_id'] as int?,
+      productName: json['product_name'] as String?,
       imgUrl: json['img_url'] as String?,
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
       regDt: json['reg_dt'] as String? ?? '',

@@ -89,7 +89,7 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
     final hasFilter = _filter != null &&
         (_filter!.storeId != null || _filter!.productId != null);
 
-    final posts = await PostService.fetchPosts(
+    final fetched = await PostService.fetchPosts(
       lat: hasFilter ? null : _lat,
       long: hasFilter ? null : _long,
       radiusKm: 3,
@@ -97,6 +97,21 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
       storeId: _filter?.storeId,
       productId: _filter?.productId,
     );
+
+    // 서버 필터를 신뢰하지만, 매장/상품 필터가 걸렸다면 응답에서도 한 번 더 거른다.
+    // (옛 데이터처럼 product_id 가 NULL 인 제보가 섞여 노출되는 걸 방지)
+    final posts = hasFilter
+        ? fetched.where((p) {
+            if (_filter!.storeId != null && p.storeId != _filter!.storeId) {
+              return false;
+            }
+            if (_filter!.productId != null &&
+                p.productId != _filter!.productId) {
+              return false;
+            }
+            return true;
+          }).toList()
+        : fetched;
 
     if (mounted) {
       setState(() {

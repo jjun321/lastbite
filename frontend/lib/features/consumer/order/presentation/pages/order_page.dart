@@ -7,7 +7,7 @@ import 'package:frontend/features/order/data/models/order_model.dart';
 import 'package:frontend/features/consumer/order/presentation/widgets/cart_reset_dialog.dart';
 import 'package:frontend/features/consumer/board/data/post_model.dart';
 import 'package:frontend/features/consumer/board/data/post_service.dart';
-import 'package:frontend/features/consumer/board/board_navigation.dart';
+import 'package:frontend/features/consumer/board/product_posts_page.dart';
 import 'cart_page.dart';
 
 class OrderScreen extends StatefulWidget {
@@ -119,9 +119,21 @@ class _OrderScreenState extends State<OrderScreen> {
     }
   }
 
+  // 공백/대소문자 차이를 흡수해 post_name 과 product_name 을 비교한다.
+  String _normalizePostName(String s) =>
+      s.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+
+  bool _postMatchesProduct(PostModel p, int productId, String productName) {
+    if (p.storeId != widget.storeId) return false;
+    // 신규 제보: product_id 가 채워져 있으면 그걸로 정확히 매칭
+    if (p.productId != null) return p.productId == productId;
+    // 옛 제보: product_id 가 NULL 이라 post_name 이 상품명과 일치하면 같은 상품으로 본다
+    return _normalizePostName(p.postName) == _normalizePostName(productName);
+  }
+
   // 특정 상품의 최신 제보 1건 로드
-  // (매장과 상품이 모두 지정된 제보만 대상)
-  Future<void> _loadLatestPost(int productId) async {
+  // (매장 필터만 서버에 걸고, 상품 매칭은 클라이언트에서 한다 — 옛 데이터 흡수용)
+  Future<void> _loadLatestPost(int productId, String productName) async {
     if (_latestPostCache.containsKey(productId)) return; // 이미 로드됨
 
     setState(() => _loadingPostIds.add(productId));
@@ -129,13 +141,16 @@ class _OrderScreenState extends State<OrderScreen> {
     try {
       final posts = await PostService.fetchPosts(
         storeId: widget.storeId,
-        productId: productId,
         sort: 'latest',
-        size: 1,
+        size: 50,
       );
+      final matched = posts
+          .where((p) => _postMatchesProduct(p, productId, productName))
+          .toList();
       if (mounted) {
         setState(() {
-          _latestPostCache[productId] = posts.isNotEmpty ? posts.first : null;
+          _latestPostCache[productId] =
+              matched.isNotEmpty ? matched.first : null;
           _loadingPostIds.remove(productId);
         });
       }
@@ -150,13 +165,13 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   // 제보 토글
-  void _toggleReport(int productId) {
+  void _toggleReport(int productId, String productName) {
     setState(() {
       if (_expandedProductIds.contains(productId)) {
         _expandedProductIds.remove(productId);
       } else {
         _expandedProductIds.add(productId);
-        _loadLatestPost(productId);
+        _loadLatestPost(productId, productName);
       }
     });
   }
@@ -424,18 +439,18 @@ class _OrderScreenState extends State<OrderScreen> {
                 )
               : GestureDetector(
                   onTap: () {
-                    // 제보 카드 탭 → 제보게시판 탭으로 이동하면서
-                    // 해당 매장 + 해당 상품 필터를 같이 적용한다.
-                    BoardNavigation.openReportBoard(
-                      filter: ReportBoardFilter(
-                        storeId: widget.storeId,
-                        storeName: widget.storeName,
-                        productId: product.productId,
-                        productName: product.productName,
+                    // 제보 카드 탭 → 해당 매장 + 해당 상품 전용 제보 페이지로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProductPostsPage(
+                          productId: product.productId,
+                          productName: product.productName,
+                          storeId: widget.storeId,
+                          storeName: widget.storeName,
+                        ),
                       ),
                     );
-                    // 홈 셸까지 모든 라우트를 정리해 사용자가 바로 탭 화면을 본다.
-                    Navigator.of(context).popUntil((r) => r.isFirst);
                   },
                   child: _buildPostCard(post),
                 ),
@@ -680,7 +695,7 @@ class _OrderScreenState extends State<OrderScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
             child: GestureDetector(
-              onTap: () => _toggleReport(item.productId),
+              onTap: () => _toggleReport(item.productId, item.productName),
               child: Container(
                 width: double.infinity,
                 height: 30,
