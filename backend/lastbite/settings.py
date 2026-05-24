@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv()
 
 SECRET_KEY = config("SECRET_KEY")
 
@@ -78,8 +79,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "lastbite.wsgi.application"
 
-load_dotenv()
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -117,6 +116,7 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = "static/"
 
 # JWT Settings
