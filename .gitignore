@@ -158,3 +158,4 @@ Thumbs.db
 # etc
 /backend/ngrok.exe
 /backend/media
+/docs

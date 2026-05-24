@@ -12,9 +12,9 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-=a--rdh+esu4a%bzudo!tp2k22u@%lpoz*@(kt&#-y(3&_2!v8"
+SECRET_KEY = config("SECRET_KEY")
 
-DEBUG = True
+DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -22,7 +22,8 @@ ALLOWED_HOSTS = [
     '10.0.2.2',  # Android 에뮬레이터
     '.ngrok.io',  # ngrok 무료 도메인
     '.ngrok-free.app',  # ngrok 무료 플랜 신규 도메인
-    '.ngrok-free.dev'
+    '.ngrok-free.dev',
+    '101.79.19.70'
 ]
 
 AUTH_USER_MODEL = "user.User"
@@ -144,8 +145,9 @@ PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
 # temp reset page, needs to be changed
 FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
 
-MEDIA_URL  = "https://joya-nonstrategical-supersmartly.ngrok-free.dev/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+SERVER_BASE_URL = config("SERVER_BASE_URL", default="http://localhost:8000")
+MEDIA_URL = f"{SERVER_BASE_URL}/media/"
+
 
 #ml server setting
 ML_SERVER_URL          = config("ML_SERVER_URL", default="http://localhost:8001")
