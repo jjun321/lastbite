@@ -80,9 +80,12 @@ class _LoginPageState extends State<LoginPage> {
           context.go('/home');
         }
       } else {
+        final msg = response.message == 'AUTH_001'
+            ? '이메일 또는 비밀번호가 일치하지 않습니다.'
+            : response.message;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       ScaffoldMessenger.of(

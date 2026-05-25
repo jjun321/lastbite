@@ -7,7 +7,7 @@ import 'package:frontend/services/auth_service.dart';
 
 /// 상품 관련 API 서비스
 class ProductService {
-  static const _base = kBaseUrl;
+  static String get _base => kBaseUrl;
 
   // ── 카테고리 목록 ──
   static Future<List<Map<String, dynamic>>> getCategories() async {
