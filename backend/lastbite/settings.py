@@ -24,7 +24,8 @@ ALLOWED_HOSTS = [
     '.ngrok.io',  # ngrok 무료 도메인
     '.ngrok-free.app',  # ngrok 무료 플랜 신규 도메인
     '.ngrok-free.dev',
-    '101.79.19.70'
+    '101.79.19.70',
+    'lastbite.o-r.kr'
 ]
 
 AUTH_USER_MODEL = "user.User"

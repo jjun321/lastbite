@@ -24,6 +24,7 @@ ALLOWED_HOSTS = [
     ".ngrok-free.app",
     ".ngrok-free.dev",
     '101.79.19.70'
+    'lastbite.o-r.kr'
 ]
 
 INSTALLED_APPS = [
