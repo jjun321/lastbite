@@ -9,7 +9,7 @@
         android:networkSecurityConfig="@xml/network_security_config">
         <meta-data
             android:name="com.naver.maps.map.NCP_KEY_ID"
-            android:value="jju5nju4gc" />
+            android:value="${NAVER_MAP_CLIENT_ID}" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

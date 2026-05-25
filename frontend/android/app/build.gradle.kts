@@ -1,8 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val envFile = rootProject.file("../.env")
+val envProps = Properties().apply {
+    if (envFile.exists()) envFile.inputStream().use { load(it) }
 }
 
 android {
@@ -28,6 +35,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["NAVER_MAP_CLIENT_ID"] = envProps.getProperty("NAVER_MAP_CLIENT_ID", "")
     }
 
     buildTypes {
