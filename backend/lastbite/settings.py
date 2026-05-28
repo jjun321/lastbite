@@ -148,7 +148,7 @@ FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000
 
 SERVER_BASE_URL = config("SERVER_BASE_URL", default="http://localhost:8000")
 MEDIA_URL = f"{SERVER_BASE_URL}/media/"
-
+MEDIA_ROOT = BASE_DIR / "media"
 
 #ml server setting
 ML_SERVER_URL          = config("ML_SERVER_URL", default="http://localhost:8001")
