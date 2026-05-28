@@ -10,14 +10,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="29ff7183-22c3-4e51-9e49-a088860d1464" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/app/app.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/app/app.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/consumer/board/report_board_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/board/report_board_page.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/consumer/home/presentation/pages/home_tab_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/home/presentation/pages/home_tab_page.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/map_view.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/map_view.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/store_card.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/store_card.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/owner/dashboard/data/owner_dashboard_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/owner/dashboard/data/owner_dashboard_service.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/consumer/order/presentation/pages/order_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/order/presentation/pages/order_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/consumer/store_detail/presentation/pages/shop_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/store_detail/presentation/pages/shop_page.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,6 +22,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[DeviceId(pluginId=LocalEmulator, isTemplate=false, identifier=path=C:\Users\etebo\.android\avd\Pixel_8.avd)]" />
   <component name="ExternalProjectsManager">
     <system id="GRADLE">
       <state>
@@ -55,18 +51,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "jjun321"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;jjun321&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/jjun321/lastbite",
-    "accountId": "9097d064-d663-407c-9963-bad5d07a1d69"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/jjun321/lastbite&quot;,
+    &quot;accountId&quot;: &quot;9097d064-d663-407c-9963-bad5d07a1d69&quot;
   }
-}]]></component>
+}</component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 1
 }</component>
@@ -83,25 +79,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Flutter.main.dart.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "com.google.services.firebase.aqiPopupShown": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "fe/consumer/home",
-    "io.flutter.project.isFirstOpen": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/etebo/Github2/lastbite/frontend",
-    "show.migrate.to.gradle.popup": "false"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Flutter.main.dart.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;com.google.services.firebase.aqiPopupShown&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;fe/consumer/home&quot;,
+    &quot;io.flutter.project.isFirstOpen&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/etebo/Github2/lastbite/frontend&quot;,
+    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">

@@ -14,11 +14,8 @@ class OrderScreen extends StatefulWidget {
   final int storeId;
   final String storeName;
 
-  const OrderScreen({
-    Key? key,
-    required this.storeId,
-    required this.storeName,
-  }) : super(key: key);
+  const OrderScreen({Key? key, required this.storeId, required this.storeName})
+    : super(key: key);
 
   @override
   State<OrderScreen> createState() => _OrderScreenState();
@@ -44,7 +41,7 @@ class _OrderScreenState extends State<OrderScreen> {
   static const _sortOptions = <String, String>{
     'ordered': '핫딜순',
     'price_asc': '최저가순',
-    'latest': '최신순',
+    'latest': '최신등록순',
   };
 
   // 제보 카드 인라인 토글 상태
@@ -149,8 +146,9 @@ class _OrderScreenState extends State<OrderScreen> {
           .toList();
       if (mounted) {
         setState(() {
-          _latestPostCache[productId] =
-              matched.isNotEmpty ? matched.first : null;
+          _latestPostCache[productId] = matched.isNotEmpty
+              ? matched.first
+              : null;
           _loadingPostIds.remove(productId);
         });
       }
@@ -185,12 +183,13 @@ class _OrderScreenState extends State<OrderScreen> {
     );
 
     if (result == AddCartResult.success) {
-      _showSnackBar('${item.productName}이(가) 장바구니에 담겼습니다.', const Color(0xFF4FA55B));
-    }
-    else if (result == AddCartResult.differentStore) {
+      _showSnackBar(
+        '${item.productName}이(가) 장바구니에 담겼습니다.',
+        const Color(0xFF4FA55B),
+      );
+    } else if (result == AddCartResult.differentStore) {
       _showResetDialog(item);
-    }
-    else {
+    } else {
       _showSnackBar('장바구니 담기 실패. 다시 시도해주세요.', Colors.red);
     }
   }
@@ -237,23 +236,38 @@ class _OrderScreenState extends State<OrderScreen> {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 45, height: 45,
+                      width: 45,
+                      height: 45,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFECF0F4), shape: BoxShape.circle,
+                        color: Color(0xFFECF0F4),
+                        shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new,
-                          size: 18, color: Color(0xFF181C2E)),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 18,
+                        color: Color(0xFF181C2E),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Text(widget.storeName,
-                      style: const TextStyle(
-                          fontFamily: 'Sen', fontSize: 17, color: Color(0xFF181C2E))),
+                  Text(
+                    widget.storeName,
+                    style: const TextStyle(
+                      fontFamily: 'Sen',
+                      fontSize: 17,
+                      color: Color(0xFF181C2E),
+                    ),
+                  ),
                   const Spacer(),
                   GestureDetector(
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const CartScreen())),
-                    child: const Icon(Icons.shopping_cart_outlined, color: Color(0xFF1E1E1E)),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CartScreen()),
+                    ),
+                    child: const Icon(
+                      Icons.shopping_cart_outlined,
+                      color: Color(0xFF1E1E1E),
+                    ),
                   ),
                 ],
               ),
@@ -291,10 +305,12 @@ class _OrderScreenState extends State<OrderScreen> {
                         ),
                         icon: const Icon(Icons.keyboard_arrow_down, size: 18),
                         items: _sortOptions.entries
-                            .map((e) => DropdownMenuItem(
-                                  value: e.key,
-                                  child: Text(e.value),
-                                ))
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value),
+                              ),
+                            )
                             .toList(),
                         onChanged: (value) {
                           if (value != null && value != _currentSort) {
@@ -315,21 +331,21 @@ class _OrderScreenState extends State<OrderScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('상품을 불러오지 못했습니다.'),
-                              TextButton(
-                                onPressed: _loadProducts,
-                                child: const Text('다시 시도'),
-                              ),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('상품을 불러오지 못했습니다.'),
+                          TextButton(
+                            onPressed: _loadProducts,
+                            child: const Text('다시 시도'),
                           ),
-                        )
-                      : _products.isEmpty
-                          ? const Center(child: Text('등록된 상품이 없습니다.'))
-                          : _buildProductList(),
+                        ],
+                      ),
+                    )
+                  : _products.isEmpty
+                  ? const Center(child: Text('등록된 상품이 없습니다.'))
+                  : _buildProductList(),
             ),
 
             // 하단 버튼
@@ -337,15 +353,24 @@ class _OrderScreenState extends State<OrderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: ElevatedButton(
                 onPressed: () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => const CartScreen())),
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4FA55B),
                   minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                child: const Text('선택 완료',
-                    style: TextStyle(color: Colors.white, fontSize: 16,
-                        fontWeight: FontWeight.w500)),
+                child: const Text(
+                  '선택 완료',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],
@@ -414,46 +439,47 @@ class _OrderScreenState extends State<OrderScreen> {
               child: Padding(
                 padding: EdgeInsets.all(12),
                 child: SizedBox(
-                  width: 20, height: 20,
+                  width: 20,
+                  height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             )
           : post == null
-              ? Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF6F8FA),
-                    borderRadius: BorderRadius.circular(12),
+          ? Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6F8FA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Text(
+                  '아직 제보된 내용이 없습니다.',
+                  style: TextStyle(
+                    color: Color(0xFF9C9BA6),
+                    fontSize: 13,
+                    fontFamily: 'Sen',
                   ),
-                  child: const Center(
-                    child: Text(
-                      '아직 제보된 내용이 없습니다.',
-                      style: TextStyle(
-                        color: Color(0xFF9C9BA6),
-                        fontSize: 13,
-                        fontFamily: 'Sen',
-                      ),
+                ),
+              ),
+            )
+          : GestureDetector(
+              onTap: () {
+                // 제보 카드 탭 → 해당 매장 + 해당 상품 전용 제보 페이지로 이동
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductPostsPage(
+                      productId: product.productId,
+                      productName: product.productName,
+                      storeId: widget.storeId,
+                      storeName: widget.storeName,
                     ),
                   ),
-                )
-              : GestureDetector(
-                  onTap: () {
-                    // 제보 카드 탭 → 해당 매장 + 해당 상품 전용 제보 페이지로 이동
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProductPostsPage(
-                          productId: product.productId,
-                          productName: product.productName,
-                          storeId: widget.storeId,
-                          storeName: widget.storeName,
-                        ),
-                      ),
-                    );
-                  },
-                  child: _buildPostCard(post),
-                ),
+                );
+              },
+              child: _buildPostCard(post),
+            ),
     );
   }
 
@@ -531,7 +557,8 @@ class _OrderScreenState extends State<OrderScreen> {
                         height: 70,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          width: 70, height: 70,
+                          width: 70,
+                          height: 70,
                           decoration: BoxDecoration(
                             color: const Color(0xFFC4C4C4),
                             borderRadius: BorderRadius.circular(8),
@@ -604,7 +631,10 @@ class _OrderScreenState extends State<OrderScreen> {
                   color: const Color(0xFFC4C4C4),
                   borderRadius: BorderRadius.circular(5),
                   image: item.imgUrl != null
-                      ? DecorationImage(image: NetworkImage(item.imgUrl!), fit: BoxFit.cover)
+                      ? DecorationImage(
+                          image: NetworkImage(item.imgUrl!),
+                          fit: BoxFit.cover,
+                        )
                       : null,
                 ),
               ),
@@ -614,7 +644,10 @@ class _OrderScreenState extends State<OrderScreen> {
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE53935),
                       borderRadius: BorderRadius.circular(4),
@@ -641,7 +674,10 @@ class _OrderScreenState extends State<OrderScreen> {
                 Expanded(
                   child: Text(
                     item.productName,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -650,9 +686,12 @@ class _OrderScreenState extends State<OrderScreen> {
                 GestureDetector(
                   onTap: () => _addToCart(item),
                   child: Container(
-                    width: 28, height: 28,
+                    width: 28,
+                    height: 28,
                     decoration: const BoxDecoration(
-                        color: Color(0xFF11A94D), shape: BoxShape.circle),
+                      color: Color(0xFF11A94D),
+                      shape: BoxShape.circle,
+                    ),
                     child: const Icon(Icons.add, color: Colors.white, size: 16),
                   ),
                 ),
@@ -666,22 +705,35 @@ class _OrderScreenState extends State<OrderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${item.productDisPrice ?? 0}원',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                Text(
+                  '${item.productDisPrice ?? 0}원',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Row(
                     children: [
-                      Text('${item.productOriPrice ?? 0}원',
-                          style: const TextStyle(
-                              fontSize: 10, color: Color(0xFFA0A5BA),
-                              decoration: TextDecoration.lineThrough)),
+                      Text(
+                        '${item.productOriPrice ?? 0}원',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFFA0A5BA),
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
                       const SizedBox(width: 4),
-                      Text('${item.discountRate}%',
-                          style: const TextStyle(
-                              fontSize: 16, color: Color(0xFFFF7622),
-                              fontWeight: FontWeight.bold)),
+                      Text(
+                        '${item.discountRate}%',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFFFF7622),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),

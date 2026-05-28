@@ -150,9 +150,13 @@ class StoreCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        store.todayClose != null
+                        store.isOffToday
+                            ? '휴무일'
+                            : store.isClosed
+                            ? '영업 종료'
+                            : store.todayClose != null
                             ? '${store.todayClose} 마감'
-                            : '영업 종료',
+                            : '영업중',
                         style: const TextStyle(
                           fontSize: 13,
                           color: Color(0xFF9E9E9E),

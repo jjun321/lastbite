@@ -428,30 +428,37 @@ class _ShopPageState extends State<ShopPage> {
         Padding(
           padding: const EdgeInsets.all(24.0),
           child: ElevatedButton(
-            onPressed: store.isClosed || store.isOffToday
-                ? null
-                : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OrderScreen(
-                          storeId: store.storeId,
-                          storeName: store.storeName,
-                        ),
-                      ),
-                    );
-                  },
+            onPressed: () {
+              if (store.isClosed || store.isOffToday) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('현재 주문할 수 없는 매장입니다.'),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: Color(0xFF323232),
+                  ),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OrderScreen(
+                    storeId: store.storeId,
+                    storeName: store.storeName,
+                  ),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4FA55B),
-              disabledBackgroundColor: const Color(0xFFA0A5BA),
               minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: Text(
-              store.isClosed || store.isOffToday ? '현재 주문 불가' : '예약하기',
-              style: const TextStyle(
+            child: const Text(
+              '예약하기',
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
