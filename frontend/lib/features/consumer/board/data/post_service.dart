@@ -7,7 +7,7 @@ import 'package:frontend/features/consumer/board/data/post_model.dart';
 
 /// 제보(Post) 관련 API 서비스
 class PostService {
-  static const _base = kBaseUrl;
+  static String get _base => kBaseUrl;
 
   // ── 제보 목록 조회 ──
   // lat, long: 현재 위치 (nullable)

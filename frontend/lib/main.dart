@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/app/app.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 /// 앱 실행 시작점
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
 
   // 네이버 지도 SDK 초기화 (신규 API - v1.3.1+)
   await FlutterNaverMap().init(
-    clientId: 'jju5nju4gc',
+    clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
     onAuthFailed: (ex) {
       switch (ex) {
         case NQuotaExceededException(:final message):

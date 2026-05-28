@@ -1,11 +1,12 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 /// Naver Cloud Platform Geocoding API.
 /// 운영 단계에서는 백엔드 프록시로 옮기기
 class NaverGeocodingService {
-  static const _clientId = 'jju5nju4gc';
-  static const _clientSecret = 'wU0QezbDc9OWkymr9b404VErqELB5D7s6t9pwEdw';
+  static String get _clientId => dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '';
+  static String get _clientSecret => dotenv.env['NAVER_MAP_CLIENT_SECRET'] ?? '';
   static const _endpoint =
       'https://maps.apigw.ntruss.com/map-geocode/v2/geocode';
 

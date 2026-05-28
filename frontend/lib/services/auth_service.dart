@@ -3,12 +3,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:frontend/app/config/api_config.dart';
 
-// 점주 쪽 기능 구현 확인만을 위해 제작된 서비스 페이지 - 추후 소비자와 통합 예정
-// API 기본 URL — 실기기 테스트 시 실제 서버 IP로 교체
-
-const String kBaseUrl =
-    'https://joya-nonstrategical-supersmartly.ngrok-free.dev'; // Android 에뮬레이터 localhost
+String get kBaseUrl => ApiConfig.baseUrl;
 
 /// 공통 서비스 클래스 — 토큰 저장/로드, 인증 헤더 생성
 class AuthService {

@@ -7,7 +7,7 @@ import 'package:frontend/services/auth_service.dart';
 
 /// 가게 정보 관련 API 서비스
 class StoreService {
-  static const _base = kBaseUrl;
+  static String get _base => kBaseUrl;
 
   /// 응답을 안전하게 JSON으로 파싱
   /// HTML/빈 문자열/비-JSON 응답이 오면 표준 에러 맵을 만들어 반환

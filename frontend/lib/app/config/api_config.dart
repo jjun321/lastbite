@@ -1,7 +1,8 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 // 백엔드 서버의 베이스 URL 및 각 엔드포인트(API 경로)를 중앙에서 관리하는 클래스
 class ApiConfig {
-  static const String baseUrl =
-      'https://joya-nonstrategical-supersmartly.ngrok-free.dev';
+  static String get baseUrl => dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
 
 // ✅ 상대 경로를 전체 URL로 바꿔주는 메서드
   static String getImageUrl(String? path) {
