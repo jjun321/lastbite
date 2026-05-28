@@ -144,7 +144,7 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
 
 # temp reset page, needs to be changed
-FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
+FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/auth/password/reset-confirm')
 
 SERVER_BASE_URL = config("SERVER_BASE_URL", default="http://localhost:8000")
 MEDIA_URL = "https://lastbite.o-r.kr/media/"

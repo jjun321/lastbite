@@ -183,9 +183,11 @@ class PasswordResetRequestView(APIView):
         return Response(api_response(True, "성공"), status=status.HTTP_200_OK)
 
 
-class PasswordResetConfirmCheckView(APIView):
-    #GET /auth/password/reset-confirm?token=<uuid>
-    #토큰 유효성 검증 (프론트에서 링크 접근 시 호출)
+
+
+class PasswordResetConfirmView(APIView):
+    #POST /auth/password/reset-confirm
+    #새 비밀번호 저장
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -217,12 +219,6 @@ class PasswordResetConfirmCheckView(APIView):
             )
 
         return Response(api_response(True, "성공", {"valid": True}), status=status.HTTP_200_OK)
-
-
-class PasswordResetConfirmView(APIView):
-    #POST /auth/password/reset-confirm
-    #새 비밀번호 저장
-    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
