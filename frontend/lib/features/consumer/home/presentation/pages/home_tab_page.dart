@@ -4,11 +4,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:frontend/features/store/data/models/store_model.dart';
 import 'package:frontend/features/store/data/repositories/store_repository_impl.dart';
 import 'package:frontend/features/store/data/repositories/product_repository_impl.dart';
+import 'package:frontend/features/order/data/repositories/order_repository_impl.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/view_toggle.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/location_preset_bar.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/store_card.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/map_view.dart';
 import 'package:frontend/features/consumer/home/presentation/widgets/distance_filter_dialog.dart';
+import 'package:frontend/services/location_tracking_service.dart';
 
 class HomeTabPage extends StatefulWidget {
   const HomeTabPage({super.key});
@@ -20,6 +22,7 @@ class HomeTabPage extends StatefulWidget {
 class _HomeTabPageState extends State<HomeTabPage> {
   final _repo = StoreRepositoryImpl();
   final _productRepo = ProductRepositoryImpl();
+  final _orderRepo = OrderRepositoryImpl();
 
   bool _isListView = true;
   bool _showAiRecommended = false;
@@ -37,11 +40,42 @@ class _HomeTabPageState extends State<HomeTabPage> {
   /// 핫딜 매장 ID 집합 (지도 빨간 마커용)
   Set<int> _hotDealStoreIds = {};
 
+  /// 유저가 실제로 픽업 완료(S03)한 매장 ID 집합 — 핫딜 배지 노출 조건의 한 축
+  Set<int> _orderedStoreIds = {};
+
   @override
   void initState() {
     super.initState();
     // 시작 시 위치 없이 전체 매장 조회
     _fetchStores();
+    _fetchOrderedStores();
+
+    // 전역 위치 추적 서비스 구독 — 3분마다 위치가 갱신되면
+    // 그 위치로 주변 매장/핫딜을 자동 재조회한다. AI 추천은 자동 갱신하지 않고,
+    // 사용자가 'AI 추천가게' 버튼을 다시 탭할 때 최신 위치를 사용한다.
+    final tracker = LocationTrackingService.instance;
+    tracker.currentPosition.addListener(_onTrackedPositionChanged);
+
+    // 서비스가 이미 위치를 가지고 있으면 즉시 반영
+    final initial = tracker.currentPosition.value;
+    if (initial != null) {
+      _currentPosition = initial;
+      _fetchStores(lat: initial.latitude, lon: initial.longitude);
+    }
+  }
+
+  @override
+  void dispose() {
+    LocationTrackingService.instance.currentPosition
+        .removeListener(_onTrackedPositionChanged);
+    super.dispose();
+  }
+
+  void _onTrackedPositionChanged() {
+    final position = LocationTrackingService.instance.currentPosition.value;
+    if (position == null || !mounted) return;
+    setState(() => _currentPosition = position);
+    _fetchStores(lat: position.latitude, lon: position.longitude);
   }
 
   // ── API 호출 ──────────────────────────────────────────
@@ -71,6 +105,26 @@ class _HomeTabPageState extends State<HomeTabPage> {
       setState(() {
         _isLoadingStores = false;
       });
+    }
+  }
+
+  // ── 유저 주문 매장 ID 로드 ────────────────────────────
+
+  /// 취소(S04)되지 않은 주문이 한 건이라도 있는 매장을 "주문한 적 있는 매장"으로 인정한다.
+  /// S01(접수) · S02(수락) · S03(픽업 완료) 모두 포함 — 결제는 했지만 아직 픽업 전인 케이스도
+  /// "주문한 적 있다"고 간주해야 사용자 인식과 맞다.
+  Future<void> _fetchOrderedStores() async {
+    try {
+      final orders = await _orderRepo.getOrders();
+      final ids = orders
+          .where((o) => o.orderStatus != 'S04')
+          .map((o) => o.storeId)
+          .toSet();
+      if (mounted) {
+        setState(() => _orderedStoreIds = ids);
+      }
+    } catch (e) {
+      print('❌ 주문 매장 로드 실패: $e');
     }
   }
 
@@ -126,23 +180,20 @@ class _HomeTabPageState extends State<HomeTabPage> {
         return;
       }
 
-      // 현재 위치 가져오기
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
+      // 전역 추적 서비스의 즉시 갱신을 트리거 — 서비스가 위치를 받으면
+      // 리스너(_onTrackedPositionChanged)가 매장 재조회까지 처리한다.
+      final position = await LocationTrackingService.instance.refreshNow();
 
-      setState(() {
-        _currentPosition = position;
-        _isLoadingLocation = false;
-      });
-
-      // 위치 받으면 주변 매장 다시 조회
-      await _fetchStores(lat: position.latitude, lon: position.longitude);
-    } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoadingLocation = false);
-      if (mounted) _showSnackBar('위치를 가져오는데 실패했습니다.');
+
+      if (position == null) {
+        _showSnackBar('위치를 가져오는데 실패했습니다.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingLocation = false);
+      _showSnackBar('위치를 가져오는데 실패했습니다.');
     }
   }
 
@@ -294,6 +345,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
       itemBuilder: (context, index) {
         return StoreCard(
           store: _stores[index],
+          // 핫딜 배지는 핫딜 매장 ∩ 유저가 픽업 완료한 적 있는 매장에만 노출.
+          isHotDeal: _hotDealStoreIds.contains(_stores[index].storeId) &&
+              _orderedStoreIds.contains(_stores[index].storeId),
           onTap: () {
             Navigator.push(
               context,
@@ -316,6 +370,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       showAiRecommended: _showAiRecommended,
       currentPosition: _currentPosition,
       hotDealStoreIds: _hotDealStoreIds,
+      orderedStoreIds: _orderedStoreIds,
       onMarkerTap: (storeId) {
         Navigator.push(
           context,

@@ -5,11 +5,13 @@ import 'package:frontend/services/auth_service.dart' show kBaseUrl;
 class StoreCard extends StatelessWidget {
   final StoreModel store;
   final VoidCallback? onTap;
+  final bool isHotDeal;
 
   const StoreCard({
     super.key,
     required this.store,
     this.onTap,
+    this.isHotDeal = false,
   });
 
   Widget _buildStoreImage() {
@@ -74,7 +76,7 @@ class StoreCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// 가게 이름 + 찜 아이콘
+                  /// 가게 이름 + 핫딜 배지
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -89,6 +91,28 @@ class StoreCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (isHotDeal)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: const Color(0xFFFF6D3B),
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '마감 할인 핫딜!',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFFF6D3B),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 6),

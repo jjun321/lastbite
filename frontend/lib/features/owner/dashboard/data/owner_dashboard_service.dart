@@ -25,7 +25,7 @@ class OwnerDashboardData {
 }
 
 class OwnerDashboardService {
-  static const _base = ApiConfig.baseUrl;
+  static final _base = ApiConfig.baseUrl;
 
   static Future<OwnerDashboardData?> fetch() async {
     try {

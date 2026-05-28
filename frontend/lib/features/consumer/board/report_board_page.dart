@@ -19,7 +19,7 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
   double? _lat;
   double? _long;
   // null 이면 정렬 칩이 모두 미선택 상태 (외부 필터로 진입한 경우).
-  String? _sort = 'latest'; // 'latest' | 'ordered' | null
+  String? _sort = 'distance'; // 'distance' | 'latest' | null
   // 매장정보 → 제보 카드에서 넘어온 매장+상품 필터.
   ReportBoardFilter? _filter;
 
@@ -58,7 +58,7 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
   void _clearFilter() {
     setState(() {
       _filter = null;
-      _sort = 'latest';
+      _sort = 'distance';
     });
     _loadPosts();
   }
@@ -93,14 +93,15 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
       lat: hasFilter ? null : _lat,
       long: hasFilter ? null : _long,
       radiusKm: 3,
-      sort: _sort,
+      // 서버 정렬 값은 'latest'만 사용한다. 거리순/최신순 모두 클라에서 다시 정렬.
+      sort: 'latest',
       storeId: _filter?.storeId,
       productId: _filter?.productId,
     );
 
     // 서버 필터를 신뢰하지만, 매장/상품 필터가 걸렸다면 응답에서도 한 번 더 거른다.
     // (옛 데이터처럼 product_id 가 NULL 인 제보가 섞여 노출되는 걸 방지)
-    final posts = hasFilter
+    final filtered = hasFilter
         ? fetched.where((p) {
             if (_filter!.storeId != null && p.storeId != _filter!.storeId) {
               return false;
@@ -111,7 +112,9 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
             }
             return true;
           }).toList()
-        : fetched;
+        : List<PostModel>.from(fetched);
+
+    final posts = _applySort(filtered);
 
     if (mounted) {
       setState(() {
@@ -119,6 +122,23 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
         _loading = false;
       });
     }
+  }
+
+  List<PostModel> _applySort(List<PostModel> input) {
+    final list = List<PostModel>.from(input);
+    if (_sort == 'distance') {
+      list.sort((a, b) {
+        final da = a.distanceKm;
+        final db = b.distanceKm;
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da.compareTo(db);
+      });
+    } else if (_sort == 'latest') {
+      list.sort((a, b) => b.regDt.compareTo(a.regDt));
+    }
+    return list;
   }
 
   Future<void> _handleRefresh() async {
@@ -216,9 +236,9 @@ class _ReportBoardPageState extends State<ReportBoardPage> {
               padding: const EdgeInsets.symmetric(horizontal: 29.0),
               child: Row(
                 children: [
-                  _buildSortChip('최신순', 'latest'),
+                  _buildSortChip('거리순', 'distance'),
                   const SizedBox(width: 8),
-                  _buildSortChip('내 주문 관련', 'ordered'),
+                  _buildSortChip('최신순', 'latest'),
                 ],
               ),
             ),

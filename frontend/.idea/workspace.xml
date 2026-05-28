@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AndroidLayouts">
+    <shared>
+      <config />
+    </shared>
+  </component>
   <component name="AutoImportSettings">
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
     <list default="true" id="29ff7183-22c3-4e51-9e49-a088860d1464" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../backend/post/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/post/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/store/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/store/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/app/app.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/app/app.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/consumer/board/report_board_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/board/report_board_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/consumer/home/presentation/pages/home_tab_page.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/home/presentation/pages/home_tab_page.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/map_view.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/map_view.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/store_card.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/consumer/home/presentation/widgets/store_card.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/owner/dashboard/data/owner_dashboard_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/owner/dashboard/data/owner_dashboard_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,6 +26,18 @@
   </component>
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <projects_view>
+          <tree_state>
+            <expand />
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
   </component>
   <component name="FileEditorManager">
     <leaf>
@@ -33,9 +55,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "jjun321"
+  }
 }]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/jjun321/lastbite",
+    "accountId": "9097d064-d663-407c-9963-bad5d07a1d69"
+  }
+}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="3D1sVIokdjn2VimJjDbdMhVkU3W" />
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1" />
@@ -51,16 +85,20 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Flutter.main.dart.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.cidr.known.project.marker": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
+    "com.google.services.firebase.aqiPopupShown": "true",
     "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "be/feature/ml-services",
+    "git-widget-placeholder": "fe/consumer/home",
     "io.flutter.project.isFirstOpen": "true",
     "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/etebo/Github2/lastbite/frontend",
     "show.migrate.to.gradle.popup": "false"
   }
 }]]></component>

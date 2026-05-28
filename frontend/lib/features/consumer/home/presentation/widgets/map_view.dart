@@ -10,6 +10,7 @@ class MapView extends StatefulWidget {
   final void Function(int storeId)? onMarkerTap; // 마커 탭 시 storeId 전달
   final Position? currentPosition;
   final Set<int> hotDealStoreIds; // 핫딜 보유 매장 ID 집합
+  final Set<int> orderedStoreIds; // 유저가 주문한 적 있는 매장 ID 집합
 
   const MapView({
     super.key,
@@ -19,6 +20,7 @@ class MapView extends StatefulWidget {
     this.onMarkerTap,
     this.currentPosition,
     this.hotDealStoreIds = const {},
+    this.orderedStoreIds = const {},
   });
 
   @override
@@ -30,47 +32,44 @@ class _MapViewState extends State<MapView> {
 
   static const NLatLng _defaultCenter = NLatLng(37.5827, 127.0088);
 
-  static const String _storeIcon = 'assets/images/icon_storelocation_pin.png';
-  static const String _recommendIcon = 'assets/images/icon_recommend_pin.png';
+  // const 생성자 — 컴파일 타임 상수로 한 번만 생성되어 SDK 기본 마커 노출을 방지한다.
+  static const NOverlayImage _storeIconImage =
+      NOverlayImage.fromAssetImage('assets/images/icon_storelocation_pin.png');
+  static const NOverlayImage _recommendIconImage =
+      NOverlayImage.fromAssetImage('assets/images/icon_recommend_pin.png');
 
-  Future<Set<NMarker>> _buildMarkers() async {
+  // 마커 사이즈를 명시적으로 지정해야 일부 디바이스에서 기본 마커로 폴백되는 현상을 막을 수 있다.
+  static const Size _markerSize = Size(32, 40);
+
+  bool _isRefreshing = false;
+
+  Set<NMarker> _buildMarkers() {
     final markers = <NMarker>{};
-
-    final storeIconImage = await NOverlayImage.fromAssetImage(_storeIcon);
-    final recommendIconImage = await NOverlayImage.fromAssetImage(
-      _recommendIcon,
-    );
 
     for (int i = 0; i < widget.stores.length; i++) {
       final store = widget.stores[i];
 
       if (store.storeLat == null || store.storeLon == null) continue;
 
-      // 핫딜 매장 → 빨간 마커, AI 추천 → 추천 마커, 그 외 → 기본
-      NOverlayImage icon;
-      if (widget.hotDealStoreIds.contains(store.storeId)) {
-        // 핫딜 매장은 빨간색 마커 — NMarker의 iconTintColor를 활용하여 빨간색 처리
-        icon = storeIconImage;
-      } else if (widget.showAiRecommended && store.isAiRecommended) {
-        icon = recommendIconImage;
-      } else {
-        icon = storeIconImage;
-      }
+      final isAi = widget.showAiRecommended && store.isAiRecommended;
+      final isHot = widget.hotDealStoreIds.contains(store.storeId);
+      final isOrdered = widget.orderedStoreIds.contains(store.storeId);
+
+      // 빨간 핀 조건: AI 추천 매장 OR (핫딜 매장 ∩ 유저가 주문한 적 있는 매장)
+      // 한 번도 주문한 적 없는 매장에는 핫딜이어도 빨간 마커를 띄우지 않는다.
+      final bool isRecommend = isAi || (isHot && isOrdered);
+      final NOverlayImage icon =
+          isRecommend ? _recommendIconImage : _storeIconImage;
 
       final marker = NMarker(
         id: 'store_$i',
         position: NLatLng(store.storeLat!, store.storeLon!),
         icon: icon,
+        size: _markerSize,
       );
-
-      // 핫딜 매장은 빨간색 틴트 적용
-      if (widget.hotDealStoreIds.contains(store.storeId)) {
-        marker.setIconTintColor(const Color(0xFFE53935));
-      }
 
       marker.setCaption(NOverlayCaption(text: store.storeName));
 
-      // 마커 탭 이벤트 — 매장 상세 페이지로 이동
       marker.setOnTapListener((overlay) {
         widget.onMarkerTap?.call(store.storeId);
       });
@@ -111,11 +110,16 @@ class _MapViewState extends State<MapView> {
     _refreshMarkers();
   }
 
-  Future<void> _refreshMarkers() async {
-    if (_mapController == null) return;
-    final markers = await _buildMarkers();
-    _mapController!.clearOverlays();
-    _mapController!.addOverlayAll(markers);
+  void _refreshMarkers() {
+    if (_mapController == null || _isRefreshing) return;
+    _isRefreshing = true;
+    try {
+      final markers = _buildMarkers();
+      _mapController!.clearOverlays();
+      _mapController!.addOverlayAll(markers);
+    } finally {
+      _isRefreshing = false;
+    }
   }
 
   Widget _buildNaverMap() {
@@ -131,9 +135,9 @@ class _MapViewState extends State<MapView> {
         initialCameraPosition: NCameraPosition(target: initialTarget, zoom: 15),
         locationButtonEnable: true,
       ),
-      onMapReady: (controller) async {
+      onMapReady: (controller) {
         _mapController = controller;
-        final markers = await _buildMarkers();
+        final markers = _buildMarkers();
         controller.addOverlayAll(markers);
       },
     );
