@@ -13,7 +13,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = '5+1b5a$f7coi92+j4hv1=du^px1i-w392fs%t(o#^@xl!@(_n#'
+SECRET_KEY = config("ML_SECRET_KEY")
 
 DEBUG = config("DEBUG", default=True, cast=bool)
 
@@ -23,7 +23,7 @@ ALLOWED_HOSTS = [
     "10.0.2.2",
     ".ngrok-free.app",
     ".ngrok-free.dev",
-    '101.79.19.70'
+    '101.79.19.70',
     'lastbite.o-r.kr'
 ]
 
