@@ -58,7 +58,7 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
         // API 목록 뒤에 '직접 입력' 항목 추가
         _categories = [
           ...cats,
-          {'category_id': -1, 'category_name': '직접 입력'}
+          {'category_id': -1, 'category_name': '직접 입력'},
         ];
         _isLoading = false;
       });
@@ -129,7 +129,7 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
                 ),
               ),
               subtitle: const Text(
-                '휴대폰 사진 갔러리에서 선택합니다',
+                '휴대폰 사진 갤러리에서 선택합니다',
                 style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
               ),
               onTap: () {
@@ -252,8 +252,9 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
         storeId: widget.storeId,
         productId: widget.product['product_id'] as int,
         categoryId: _selectedCategoryId == -1 ? null : _selectedCategoryId,
-        categoryName:
-            _selectedCategoryId == -1 ? _categoryCtrl.text.trim() : null,
+        categoryName: _selectedCategoryId == -1
+            ? _categoryCtrl.text.trim()
+            : null,
         productName: _nameCtrl.text.trim(),
         oriPrice: ori,
         disPrice: dis,
@@ -457,7 +458,10 @@ class _OwnerProductEditPageState extends State<OwnerProductEditPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<int>(
-            value: (_categories.any((c) => c['category_id'] == _selectedCategoryId))
+            value:
+                (_categories.any(
+                  (c) => c['category_id'] == _selectedCategoryId,
+                ))
                 ? _selectedCategoryId
                 : null,
             isExpanded: true,
