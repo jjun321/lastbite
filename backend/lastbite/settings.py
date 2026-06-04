@@ -11,10 +11,11 @@ from dotenv import load_dotenv
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv()
 
-SECRET_KEY = "django-insecure-=a--rdh+esu4a%bzudo!tp2k22u@%lpoz*@(kt&#-y(3&_2!v8"
+SECRET_KEY = config("SECRET_KEY")
 
-DEBUG = True
+DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -22,7 +23,9 @@ ALLOWED_HOSTS = [
     '10.0.2.2',  # Android 에뮬레이터
     '.ngrok.io',  # ngrok 무료 도메인
     '.ngrok-free.app',  # ngrok 무료 플랜 신규 도메인
-    '.ngrok-free.dev'
+    '.ngrok-free.dev',
+    '101.79.19.70',
+    'lastbite.o-r.kr'
 ]
 
 AUTH_USER_MODEL = "user.User"
@@ -77,8 +80,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "lastbite.wsgi.application"
 
-load_dotenv()
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -116,6 +117,7 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = "static/"
 
 # JWT Settings
@@ -142,9 +144,10 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 PASSWORD_RESET_TIMEOUT_MINUTES = 30 #minutes
 
 # temp reset page, needs to be changed
-FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/reset-password')
+FRONTEND_RESET_URL = config('FRONTEND_RESET_URL', default='http://localhost:3000/auth/password/reset-confirm')
 
-MEDIA_URL  = "https://joya-nonstrategical-supersmartly.ngrok-free.dev/media/"
+SERVER_BASE_URL = config("SERVER_BASE_URL", default="http://localhost:8000")
+MEDIA_URL = "https://lastbite.o-r.kr/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 #ml server setting
