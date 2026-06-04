@@ -68,12 +68,16 @@ class _OwnerMyPageState extends State<OwnerMyPage> {
                         : null,
                   ),
                   const SizedBox(width: 20),
-                  Text(
-                    _userName.isEmpty ? 'User_name' : _userName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                  Expanded(
+                    child: Text(
+                      _userName.isEmpty ? 'User_name' : _userName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF333333),
+                      ),
                     ),
                   ),
                 ],
