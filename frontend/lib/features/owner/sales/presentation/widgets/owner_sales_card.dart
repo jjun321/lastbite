@@ -21,7 +21,7 @@ class ProductCard extends StatelessWidget {
     final oriPrice = product['product_ori_price'] ?? 0;
     final disPrice = product['product_dis_price'] ?? 0;
     final rate = product['discount_rate'] ?? 0;
-    final qty = product['quantity'] ?? 0;
+    final qty = product['product_count'] ?? 0;
     final imgUrl = product['img_url'] as String?;
 
     return Opacity(
@@ -206,7 +206,7 @@ class ProductCard extends StatelessWidget {
   }
 
   String _format(int n) => n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]},',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]},',
+  );
 }
