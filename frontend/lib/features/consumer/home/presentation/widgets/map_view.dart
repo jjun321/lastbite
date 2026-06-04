@@ -9,8 +9,6 @@ class MapView extends StatefulWidget {
   final VoidCallback? onSelectTap;
   final void Function(int storeId)? onMarkerTap; // 마커 탭 시 storeId 전달
   final Position? currentPosition;
-  final Set<int> hotDealStoreIds; // 핫딜 보유 매장 ID 집합
-  final Set<int> orderedStoreIds; // 유저가 주문한 적 있는 매장 ID 집합
 
   const MapView({
     super.key,
@@ -19,8 +17,6 @@ class MapView extends StatefulWidget {
     this.onSelectTap,
     this.onMarkerTap,
     this.currentPosition,
-    this.hotDealStoreIds = const {},
-    this.orderedStoreIds = const {},
   });
 
   @override
@@ -51,13 +47,9 @@ class _MapViewState extends State<MapView> {
 
       if (store.storeLat == null || store.storeLon == null) continue;
 
-      final isAi = widget.showAiRecommended && store.isAiRecommended;
-      final isHot = widget.hotDealStoreIds.contains(store.storeId);
-      final isOrdered = widget.orderedStoreIds.contains(store.storeId);
-
-      // 빨간 핀 조건: AI 추천 매장 OR (핫딜 매장 ∩ 유저가 주문한 적 있는 매장)
-      // 한 번도 주문한 적 없는 매장에는 핫딜이어도 빨간 마커를 띄우지 않는다.
-      final bool isRecommend = isAi || (isHot && isOrdered);
+      // 빨간 핀 조건: AI 추천이 활성화되고 해당 매장이 AI 추천 매장일 때만.
+      final bool isRecommend =
+          widget.showAiRecommended && store.isAiRecommended;
       final NOverlayImage icon =
           isRecommend ? _recommendIconImage : _storeIconImage;
 

@@ -369,8 +369,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
       stores: _stores,
       showAiRecommended: _showAiRecommended,
       currentPosition: _currentPosition,
-      hotDealStoreIds: _hotDealStoreIds,
-      orderedStoreIds: _orderedStoreIds,
       onMarkerTap: (storeId) {
         Navigator.push(
           context,
