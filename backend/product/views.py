@@ -132,7 +132,7 @@ class StoreProductListView(APIView):
 
         qs = (
             Product.objects
-            .filter(store_id=store_id, is_deleted=False)
+            .filter(store_id=store_id, is_deleted=False, product_count__gt=0)
             .select_related('category_id')
             .prefetch_related('productimg_set__img_id')
             .order_by('product_dis_price')
