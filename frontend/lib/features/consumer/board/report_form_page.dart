@@ -83,9 +83,13 @@ class _ReportFormPageState extends State<ReportFormPage> {
   // ── 이미지 선택 ──
   Future<void> _pickImage() async {
     final picker = ImagePicker();
+    // nginx 업로드 제한(1MB)을 넘지 않도록 해상도·품질을 함께 제한한다.
+    // (해상도 제한 없이 imageQuality만 주면 고화질 폰 사진은 1MB를 넘어 413으로 막힌다)
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      imageQuality: 70,
     );
     if (picked != null) {
       setState(() => _imageFile = File(picked.path));

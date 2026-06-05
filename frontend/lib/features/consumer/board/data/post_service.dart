@@ -93,7 +93,26 @@ class PostService {
 
       final streamed = await request.send();
       final res = await http.Response.fromStream(streamed);
+
+      // nginx가 용량 초과(413) 등으로 막으면 JSON이 아닌 HTML이 내려온다.
+      // 이 경우 jsonDecode가 예외를 던지므로 상태코드/본문을 먼저 로그로 남긴다.
+      if (res.statusCode == 413) {
+        debugPrint('createPost: 413 - 이미지 용량이 서버 제한을 초과했습니다.');
+        return false;
+      }
+      final contentType = res.headers['content-type'] ?? '';
+      if (!contentType.contains('application/json')) {
+        debugPrint(
+          'createPost: 예상치 못한 응답 (status=${res.statusCode}, '
+          'content-type=$contentType): ${res.body}',
+        );
+        return false;
+      }
+
       final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (body['success'] != true) {
+        debugPrint('createPost failed: ${body['message']}');
+      }
       return body['success'] == true;
     } catch (e) {
       debugPrint('createPost error: $e');
