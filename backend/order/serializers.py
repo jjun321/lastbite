@@ -32,6 +32,7 @@ def _is_pickup_valid(working_time, pickup_dt) -> bool:
 
 # 요일 코드 매핑 (Python weekday() 기준)
 # 0=월, 1=화, 2=수, 3=목, 4=금, 5=토, 6=일
+'''
 WEEKDAY_CODE_MAP = {
     0: 'D02',  # 월
     1: 'D03',  # 화
@@ -41,7 +42,8 @@ WEEKDAY_CODE_MAP = {
     5: 'D07',  # 토
     6: 'D01',  # 일
 }
-
+'''
+WEEKDAY_CODE_MAP = {i: f'D{i+1:02d}' for i in range(7)}
 
 
 # ─── Mixin: total_price 계산 공통화 ──────────────────────
