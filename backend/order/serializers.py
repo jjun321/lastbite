@@ -102,8 +102,6 @@ class OrderCreateSerializer(serializers.Serializer):
         if not working_time:
             raise serializers.ValidationError({"pickup_dt": "해당 요일은 매장 운영일이 아닙니다."})
 
-        if not _is_pickup_valid(working_time, pickup_dt):
-            raise serializers.ValidationError({"pickup_dt": "픽업 시간이 매장 운영시간을 벗어납니다."})
 
         # 3. 재고 체크
         for item in items:
