@@ -12,9 +12,11 @@ def create_periodic_task(apps, schema_editor):
     IntervalSchedule = apps.get_model("django_celery_beat", "IntervalSchedule")
     PeriodicTask = apps.get_model("django_celery_beat", "PeriodicTask")
 
+    # historical model에는 IntervalSchedule.MINUTES 같은 클래스 상수가 없으므로
+    # 실제 DB에 저장되는 문자열 값("minutes")을 직접 사용한다.
     schedule, _ = IntervalSchedule.objects.get_or_create(
         every=INTERVAL_MINUTES,
-        period=IntervalSchedule.MINUTES,
+        period="minutes",
     )
 
     PeriodicTask.objects.get_or_create(
