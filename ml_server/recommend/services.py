@@ -9,7 +9,7 @@ Django ORM으로 DB를 직접 조회하므로 SQLAlchemy 불필요.
   2. DBSCAN 군집화 → 군집 중심(centroid) 계산
   3. centroid 기준 반경 내 매장 바운딩 박스 조회 (ORM 1차 필터)
   4. Haversine 정밀 거리 2차 필터
-  5. score = ALPHA×거리점수 + BETA×조회수점수 + GAMMA×할인율점수
+  5. score = ALPHA×거리점수 + GAMMA×할인율점수
   6. score 내림차순 정렬 후 top_n 반환
 """
 
@@ -29,9 +29,8 @@ from recommend.services_association import (
 )
 
 # ── 설정값 로드 ───────────────────────────────────────────────────────────────
-ALPHA = getattr(settings, "RECOMMEND_ALPHA", 0.5)
-BETA  = getattr(settings, "RECOMMEND_BETA",  0.2)
-GAMMA = getattr(settings, "RECOMMEND_GAMMA", 0.3)
+ALPHA = getattr(settings, "RECOMMEND_ALPHA", 0.6)
+GAMMA = getattr(settings, "RECOMMEND_GAMMA", 0.4)
 
 DBSCAN_EPS_KM      = getattr(settings, "DBSCAN_EPS_KM",      0.5)
 DBSCAN_EPS_RAD     = DBSCAN_EPS_KM / 6371.0
