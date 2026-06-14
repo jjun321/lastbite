@@ -78,7 +78,7 @@ ML_INTERNAL_API_KEY = config("ML_INTERNAL_API_KEY", default="_qRqqEaQcs5ZIJHAeNA
 # ── DBSCAN 파라미터 ───────────────────────────────────────────────────────────
 DBSCAN_EPS_KM      = 0.5   # 군집 반경 (km)
 DBSCAN_MIN_SAMPLES = 3     # 군집 형성 최소 포인트 수
-SEARCH_RADIUS_KM   = 10.0   # 군집 중심 기준 매장 탐색 반경 (km) 테스트 시 변경 필요
+SEARCH_RADIUS_KM   = 3.0   # 군집 중심 기준 매장 탐색 반경 (km) 테스트 시 변경 필요
 
 # ── 가중치 ────────────────────────────────────────────────────────────────────
 RECOMMEND_ALPHA = 0.5   # 거리 가중치
