@@ -111,7 +111,6 @@ class OrderCreateSerializer(serializers.Serializer):
                 "pickup_dt": f"픽업 시간이 운영시간({open_str} ~ {close_str})을 벗어납니다."
             })
 
-
         # 3. 재고 체크
         for item in items:
             try:

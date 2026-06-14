@@ -116,9 +116,7 @@ class StoreProductListView(APIView):
 
     def get(self, request, store_id):
         # 매장 존재 확인
-        try:
-            Store.objects.get(pk=store_id, is_deleted=False)
-        except Store.DoesNotExist:
+        if not Store.objects.filter(pk=store_id, is_deleted=False).exists():
             return error_response("매장을 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
 
         try:

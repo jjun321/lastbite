@@ -87,3 +87,32 @@ def is_store_open_now(store) -> bool:
     close_dt   = datetime.combine(close_date, wt.end_time).replace(tzinfo=KST)
 
     return open_dt <= now < close_dt
+
+
+
+def auto_soldout_closed_stores(stores) -> int:
+    """
+    여러 매장을 대상으로 영업 종료된 매장의 상품을 일괄 품절(0) 처리한다.
+
+    [자동 종료 스케줄러]
+    store.tasks.auto_soldout_all_closed_stores (Celery Beat, 기본 5분 주기)에서
+    전체 매장을 대상으로 호출되어, 매장마다 개별 쿼리를 날리지 않고
+    "영업 종료 매장 ID 목록"을 한 번에 추려 단일 UPDATE로 처리한다.
+
+    Args:
+        stores: Store 인스턴스의 iterable (이미 메모리에 로드된 목록 권장)
+
+    Returns:
+        int: 품절 처리된 상품 row 수
+    """
+    from product.models.product import Product
+
+    closed_store_ids = [s.store_id for s in stores if not is_store_open_now(s)]
+    if not closed_store_ids:
+        return 0
+
+    return (
+        Product.objects
+        .filter(store_id__in=closed_store_ids, is_deleted=False, product_count__gt=0)
+        .update(product_count=0)
+    )

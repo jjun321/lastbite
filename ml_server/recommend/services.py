@@ -189,7 +189,7 @@ def get_recommendations(user_id: int, top_n: int = 10) -> list[dict]:
                 for c in candidates:
                     dist_score = max(0.0, 1.0 - c["dist"] / max_dist)
                     rate_score = c["best_discount_rate"] / max_rate
-                    score      = ALPHA * dist_score + BETA * 0.0 + GAMMA * rate_score
+                    score      = ALPHA * dist_score + GAMMA * rate_score
                     results.append({
                         "store_id":           c["store_id"],
                         "store_name":         c["store_name"],
